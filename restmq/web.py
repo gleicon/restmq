@@ -1,17 +1,12 @@
-#!/usr/bin/env python
 # coding: utf-8
-# twistd -ny restmq.tac
-# twisted/cyclone app skeleton copycat from fiorix's webredis.tac (http://fiorix.wordpress.com)
-# gleicon moraes (http://zenmachine.wordpress.com | http://github.com/gleicon)
 
 import txredis
 import cyclone.web
 import cyclone.escape
-from twisted.internet import defer
-from twisted.application import service, internet
-import engine
-from cmd_dispatch import CommandDispatch
-from twisted.internet import task
+from restmq import core
+from restmq import dispatch
+from twisted.internet import task, defer
+
 
 class IndexHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
@@ -54,6 +49,7 @@ class StatusHandler(cyclone.web.RequestHandler):
         self.write("%s\n" % cyclone.escape.json_encode(stats))
         self.finish()
 
+
 class XmlrpcHandler(cyclone.web.XmlrpcRequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
@@ -78,6 +74,7 @@ class XmlrpcHandler(cyclone.web.XmlrpcRequestHandler):
 
         defer.returnValue(result)
 
+
 class RestQueueHandler(cyclone.web.RequestHandler):
     """ RestQueueHandler applies HTTP Methods to a given queue.
         GET gets an object out of the queue.
@@ -89,6 +86,7 @@ class RestQueueHandler(cyclone.web.RequestHandler):
     
     def post(self, queue):
         self.write('queue %s' % queue)
+
 
 class QueueHandler(cyclone.web.RequestHandler):
     """ QueueHandler deals with the json protocol"""
@@ -107,7 +105,7 @@ class QueueHandler(cyclone.web.RequestHandler):
         except:
             raise cyclone.web.HTTPError(400, 'Malformed json. Invalid format.')
         
-        d = CommandDispatch(self.settings.oper)
+        d = dispatch.CommandDispatch(self.settings.oper)
         r = yield d.execute(cmd, jsonbody)
         if r:
             self.write(r) 
@@ -115,6 +113,7 @@ class QueueHandler(cyclone.web.RequestHandler):
             self.write(cyclone.escape.json_encode({"Error":"Null resultset"}))
 
         self.finish()
+
 
 class CometQueueHandler(cyclone.web.RequestHandler):
     """
@@ -170,7 +169,7 @@ class CometDispatcher(object):
         defer.returnValue(None)
 
 
-class RestMQ(cyclone.web.Application):
+class Application(cyclone.web.Application):
     def __init__(self):
         handlers = [
             (r"/",       IndexHandler),
@@ -181,7 +180,7 @@ class RestMQ(cyclone.web.Application):
             (r"/queue",  QueueHandler)
         ]
         db = txredis.lazyRedisConnectionPool()
-        oper = engine.RedisOperations(db)
+        oper = core.RedisOperations(db)
         settings = {
             "db": db,
             "comet": CometDispatcher(oper),
@@ -190,7 +189,3 @@ class RestMQ(cyclone.web.Application):
         }
 
         cyclone.web.Application.__init__(self, handlers, **settings)
-
-application = service.Application("restmq")
-srv = internet.TCPServer(8888, RestMQ())
-srv.setServiceParent(application)
