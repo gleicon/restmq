@@ -1,0 +1,11 @@
+engine.py:    - TODO: the object may have an expiration instead of straight deletion
+engine.py:    - TODO: RPOPLPUSH can be used to put it in another queue as a backlog
+engine.py:    - TODO: persistence management (on/off/status)
+engine.py:                if uuid == 1: # TODO: use ismember()
+engine.py:            except: #TODO: rethink if retrying is really necessary. Spread around if it is.
+engine.py:        # TODO: how to implement get reference counting ? is it necessary (redis opers are atomic...) 
+engine.py:        # TODO: cleanup in delete
+restmq.tac:        DELETE is a TODO yet. Once you get the object, it's deleted for good.
+restmq.tac:        self.presence=[] # TODO: could use redis itself to hold user presence
+restmq.tac:        #TODO: optimze to avoid repeated calls
+restmq.tac:    #TODO: do it

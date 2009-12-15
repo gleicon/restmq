@@ -1,0 +1,33 @@
+RestMQ is a queue broker which presents different ways to access its data.
+It is based on Redis, python, twisted and the cyclone webserver/framework.
+Most of its features were drawn around Redis, which can deal with different types of data.
+There goes an sketch of the basic queue algorithm:
+
+The most important method is queue_add:
+    Given a queue named QUEUE
+    INCR a key named QUEUE:UUID 
+    This UUID then is used to create a key QUEUE:UUID
+    Check if this queue name is alread in the QUEUESET set. If not, add it. For now it just checks if 
+        its the first time the name is used.
+    SET QUEUE:UUID with the data
+    PUSH QUEUE:UUID in the list QUEUE:queue.
+
+All these data structures are accounted to give how many and which queue exists in the system, ensure that they keys 
+wont repeat and that there is an order in which they are retrieved.
+
+GET will just POP a value from QUEUE:queue and GET the value under this key.
+
+Check engine.py for all the logic and examples.
+
+There are a few http routes:
+
+ /q/queuename - entry for a simple REST queue manipulation. POST inserts, GET removes and returns.
+ /queue - entry point for the JSON protocol (see PROTOCOL)
+ /c/queuename - entry point for a experimental COMET light consumer.
+ /stats - misc statuses and queue list
+
+The CometQueueHandler is a permanent consumer for objects in a queue.
+It must only feed new objects to a permanent http connection. Deletion is not handled here for now.
+As each queue object has its own key, it can be done thru /queue interface. 
+It also can be changed for a hard consumer, just commenting out the softget inside the method.
+                                     

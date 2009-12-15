@@ -1,41 +1,32 @@
-RestMQ is a message queue which uses HTTP as transport, JSON to format a minimalist protocol and is organized as REST resources.
-It stands on the shoulder of giants, built over Python, Twisted and Redis.
-The queues are created on the fly, as a message is sent to them.
+RESTMQ
+Redis based message queue.
 
-Example:
+PEOPLE
+gleicon moraes - http://zenmachine.wordpress.com - gleicon@gmail.com 
+alexandre fiori - http://fiorix.wordpress.com
 
-A http client (curl) post to /queue:
+DEPENDENCIES
+- python, twisted
+- redis client: 
+  git clone git://github.com/fiorix/txredis
+- cyclone: 
+  git clone git://github.com/fiorix/tornado.git 
 
-{
-    "cmd": "add",
-    "queue": "genesis",
-    "value": "abacab"
-}
+RUNNING
+development env: twistd -ny restmq.tac
 
-creates the queue named "genesis" and inserts the string "abacab" as the message.
+production env (needs epoll and proper user/group): 
+twistd --pidfile=/var/run/restmq.pid --logfile=/var/log/restmq.log \
+       --reactor=epoll --uid=www-data --gid=www-data --python=restmq.tac
 
-If we want to take that out of the queue, the ayload would be like that:
+TESTS:
+test_rest.sh
+test_xmlrpc.py
+python engine.py -h
 
-{
-    "cmd": "take",
-    "queue": "genesis"
-}
+FILES
+engine.py - the redis abstraction layer to the queue algorithm
+cmd_dispatch.py - a simple command dispatcher
+restmq.tac - the main app
 
-
-
-The message can be formatted as a json object, so more complex data can be sent.
-It really mimics some of Amazon SQS workings, because it's a simple queue.
-For the first release it has:
-
-- EPoll or KQueue concurrency
-- Persistent queueing using redis
-- Can work on pools, N daemons consuming from the same queues.
-- Cute ?
-- Small code
-
-For the future:
-
-- Routes
-- COMET (yeah, it's a bit more than a queue must have, but it's not that complex)
-- 
 

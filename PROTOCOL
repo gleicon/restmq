@@ -1,0 +1,36 @@
+JSON protocol
+For operations using the JSON protocol, a post mus be issued to http://server/queue .
+There is a simple html form when you issue a GET /queue. 
+This is a simple protocol for queue manipulation, based on my first prototype at http://jsonqueue.appspot.com.
+
+
+Queue add example:
+{
+	"cmd":"add", 
+	"queue":"test", 
+	"value":"oi"
+}
+- Adds an element to a given queue. If the queue doesn't exists, create it. 
+
+Queue get example:
+{
+	"cmd":"get", 
+	"queue":"test"
+}
+- Just get the next element from the queue. It increments a reference counter.
+
+Queue del example:
+{
+	"cmd":"del", 
+	"queue":"test", 
+	"key":"test:31"
+}
+- Deletes an element from the queue. Use the key which comes with get
+
+Queue take example:
+{
+	"cmd":"take", 
+	"queue":"test" 
+}
+- Get and Delete the latest element from the queue.
+
