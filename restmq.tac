@@ -123,27 +123,13 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         deletion is not handled here for now.
         As each queue object has its own key, it can be done thru /queue interface
     """
-    def __init__(self, *a, **kw):
-        loopingCall = task.LoopingCall(self.__queue_feed)
-        loopingCall.start(20, False)
-        self.presence=[] # TODO: could use redis itself to hold user presence
-        cyclone.web.RequestHandler.__init__(self, *a, **kw)
+    def _disconnected(self, why, handler):
+        try:
+            self.settings.comet.presence.pop(handler)
+        except:
+            pass
 
-    @defer.inlineCallbacks
-    def __queue_feed(self):
-        #TODO: optimze to avoid repeated calls
-        if len(self.presence) == 0:
-            return
-        print "clients: %d" % len(self.presence)
-        for p in self.presence:
-            value = yield self.settings.oper.queue_get(p['queue'].encode("utf-8"), softget=True) # softget= True, so it wont disrupt the queue order
-            if value == None:
-                continue
-            if value['count'] < 2:
-                p['handler'].write('%s\n' % value)
-                p['handler'].flush()
-
-    #TODO: do it
+    #TODO: do it right
     @cyclone.web.asynchronous
     def get(self, queue):
         """
@@ -155,13 +141,30 @@ class CometQueueHandler(cyclone.web.RequestHandler):
             show objects with reference counter > 1.
             It can be changed by removing softget=True from oper_get request. This way, it will be truly a http consumer.
         """
+        self.set_header("Content-Type", "text/plain")
+        self.settings.comet.presence[self] = queue.encode("utf-8")
+        self.notifyFinish().addCallback(self._disconnected, self)
+        self.write("comet:\n")
+        self.flush()
 
-        try:
-            self.set_header("Content-Type", "text/plain")
-            self.write("comet:\n")
-            self.presence.append({'handler': self, 'queue':queue})
-        except Exception, e:
-            self.write('comet error')
+
+class CometDispatcher(object):
+    def __init__(self, oper):
+        self.oper = oper
+        self.presence={} # TODO: could use redis itself to hold user presence
+        self.task = task.LoopingCall(self.dispatch)
+        self.task.start(1)
+
+    @defer.inlineCallbacks
+    def dispatch(self):
+        for handler, queue in self.presence.items():
+            # softget= True, so it wont disrupt the queue order
+            # TODO: cache results so it wont mess up with a lot of clients/queues
+            value = yield self.oper.queue_get(queue, softget=True)            
+            if value:
+                handler.write('%s\n' % value)
+                handler.flush()
+        defer.returnValue(None)
 
 
 class RestMQ(cyclone.web.Application):
@@ -170,15 +173,17 @@ class RestMQ(cyclone.web.Application):
             (r"/",       IndexHandler),
             (r"/q/(.*)", RestQueueHandler),
             (r"/c/(.*)", CometQueueHandler),
-            (r"/stats", StatusHandler),
+            (r"/stats",  StatusHandler),
             (r"/xmlrpc", XmlrpcHandler),
             (r"/queue",  QueueHandler)
         ]
-        db = txredis.lazyConnectionPool(defer=False)
+        db = txredis.lazyRedisConnectionPool()
+        oper = engine.RedisOperations(db)
         settings = {
             "db": db,
+            "comet": CometDispatcher(oper),
             "static_path": "./static",
-            "oper": engine.RedisOperations(db)
+            "oper": oper,
         }
 
         cyclone.web.Application.__init__(self, handlers, **settings)
@@ -186,4 +191,3 @@ class RestMQ(cyclone.web.Application):
 application = service.Application("restmq")
 srv = internet.TCPServer(8888, RestMQ())
 srv.setServiceParent(application)
-
