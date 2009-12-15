@@ -157,12 +157,15 @@ class CometDispatcher(object):
 
     @defer.inlineCallbacks
     def dispatch(self):
+        transientcache={}
         for handler, queue in self.presence.items():
-            # softget= True, so it wont disrupt the queue order
-            # TODO: cache results so it wont mess up with a lot of clients/queues
-            value = yield self.oper.queue_get(queue, softget=True)            
-            if value:
-                handler.write('%s\n' % value)
+            if not transientcache.has_key(queue):
+                # softget= True, wont remove stuff, but need fix so it wont flood with the same result...
+                # TODO: cache results so it wont mess up with a lot of clients/queues
+                transientcache[queue] = yield self.oper.queue_get(queue) #, softget=True)
+            v=transientcache[queue]
+            if v:
+                handler.write('%s\n' % v)
                 handler.flush()
         defer.returnValue(None)
 
