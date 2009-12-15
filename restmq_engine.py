@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import txredis
+import txredisapi
 import simplejson
 from restmq import core
 from optparse import OptionParser
@@ -17,7 +17,7 @@ def test_operations(opt, args):
         based on tx-redis
     """
     try:
-        rd = yield txredis.RedisConnectionPool()
+        rd = yield txredisapi.RedisConnectionPool()
     except Exception, e:
         print "Error creating redis pool %s" % e
         defer.returnValue(None)

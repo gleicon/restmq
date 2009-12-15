@@ -1,6 +1,6 @@
 # coding: utf-8
 
-import txredis
+import txredisapi
 import cyclone.web
 import cyclone.escape
 from restmq import core
@@ -182,7 +182,7 @@ class Application(cyclone.web.Application):
             (r"/xmlrpc", XmlrpcHandler),
             (r"/queue",  QueueHandler)
         ]
-        db = txredis.lazyRedisConnectionPool()
+        db = txredisapi.lazyRedisConnectionPool()
         oper = core.RedisOperations(db)
         settings = {
             "db": db,

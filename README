@@ -48,7 +48,7 @@ For the first release it has:
 DEPENDENCIES
 - python, twisted
 - redis client: 
-  git clone git://github.com/fiorix/txredis
+  git clone git://github.com/fiorix/txredisapi.git
 - cyclone: 
   git clone git://github.com/fiorix/tornado.git 
 
@@ -68,5 +68,3 @@ FILES
 engine.py - the redis abstraction layer to the queue algorithm
 cmd_dispatch.py - a simple command dispatcher
 restmq.tac - the main app
-
-
