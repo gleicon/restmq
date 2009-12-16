@@ -128,7 +128,6 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         except:
             pass
 
-    #TODO: do it right
     @cyclone.web.asynchronous
     def get(self, queue):
         """
@@ -143,7 +142,6 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         self.set_header("Content-Type", "text/plain")
         self.settings.comet.presence[self] = queue.encode("utf-8")
         self.notifyFinish().addCallback(self._disconnected, self)
-        #self.write("comet:\n")
         self.flush()
 
 
@@ -160,7 +158,6 @@ class CometDispatcher(object):
         for handler, queue in self.presence.items():
             if not transientcache.has_key(queue):
                 # softget= True, wont remove stuff, but need fix so it wont flood with the same result...
-                # TODO: cache results so it wont mess up with a lot of clients/queues
                 content = yield self.oper.queue_get(queue) #, softget=True)
                 if content:
                     transientcache[queue] = cyclone.escape.json_encode(content)

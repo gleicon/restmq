@@ -6,6 +6,3 @@ engine.py:            except: #TODO: rethink if retrying is really necessary. Sp
 engine.py:        # TODO: how to implement get reference counting ? is it necessary (redis opers are atomic...) 
 engine.py:        # TODO: cleanup in delete
 restmq.tac:        DELETE is a TODO yet. Once you get the object, it's deleted for good.
-restmq.tac:    #TODO: do it right
-restmq.tac:        self.presence={} # TODO: could use redis itself to hold user presence
-restmq.tac:            # TODO: cache results so it wont mess up with a lot of clients/queues
