@@ -5,22 +5,37 @@ RESTMQ
 Redis based message queue.
 --------------------------
 
-:Info: See `the redis site <http://code.google.com/p/redis/>`_ for more information.
+:Info: See `my blog <http://zenmachine.wordpress.com>`_ for more information.
 :Author: Gleicon Moraes <gleicon@gmail.com>
+:Author: Alexandre Fiori
 
 
 About
 =====
 RestMQ is a message queue which uses HTTP as transport, JSON to format a minimalist protocol and is organized as REST 
-resources. It stands on the shoulder of giants, built over Python, Twisted and Redis.
+resources. It stands on the shoulder of giants, built over Python, Twisted, Cyclone (a Tornado implementation over twisted) and Redis.
 
-The queues are created on the fly, as a message is sent to them.
+Redis is more than just a key/value db, and its data types provided support for this project.
+
+The queues are created on the fly, as a message is sent to them. They are simple to use as a curl request can be.
+
 
 
 Example
 ========
 A http client (curl) post to /queue:
 
+Point your browser to http://localhost:8888/c/test
+
+Run $ curl -X POST -d "queue=test&value=foobar" http://localhost:8888/ 
+
+Your browser is acting as a consumer to the queue. Using json encoded data it's easy to fit the data into a js based app.
+
+Aside from the COMET consumer, there are xmlrpc methods, rest routes and the JSON protocol to manipulate queue items.
+
+
+JSON Protocol
+=============
 ::
 
     {
@@ -46,11 +61,11 @@ It really mimics some of `Amazon SQS <http://aws.amazon.com/sqs/>`_ workings, be
 
 For the first release it has:
 
-- EPoll or KQueue concurrency
-- Persistent queueing using redis
+- Select, EPoll or KQueue concurrency (depends on twisted)
+- Persistent queueing using Redis
 - Can work on pools, N daemons consuming from the same queues.
 - Cute ?
-- Small code
+- Small codebase
 
 
 Dependencies
@@ -68,7 +83,7 @@ Development environment:
 
 ::
 
-    twistd -ny restmq.tac
+    twistd -ny restmq_server.tac
 
 Production environment (needs epoll and proper user/group): 
 
@@ -85,6 +100,9 @@ Tests
 
     examples/test_rest.sh
     examples/test_xmlrpc.py
+    python examples/test_comet.py
+    python examples/twitter_trends.py
+    python examples/test_comet_curl.py  
     python restmq_engine.py -h
 
 
@@ -98,6 +116,5 @@ Files
 Credits
 =======
 Thanks to (in no particular order):
-
-- Alexandre Fiori
-    - Testing, coding, etc
+    Salvatore Sanfilippo for redis and for NoSQL patterns discussion.
+    Alexandre Fiori for the redis client enhancement and patches.
