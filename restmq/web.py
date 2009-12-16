@@ -15,7 +15,7 @@ class IndexHandler(cyclone.web.RequestHandler):
     def get(self):
         queue = self.get_argument("queue")
         try:
-            value = yield self.settings.oper.queue_get(queue.encode("utf-8"))
+            policy, value = yield self.settings.oper.queue_get(queue.encode("utf-8"))
         except Exception, e:
             self.write("exception get: %s\n" % str(e))
         else:
@@ -56,7 +56,7 @@ class XmlrpcHandler(cyclone.web.XmlrpcRequestHandler):
     @cyclone.web.asynchronous
     def xmlrpc_get(self, queue):
         try:
-            value = yield self.settings.oper.queue_get(queue.encode("utf-8"))
+            policy, value = yield self.settings.oper.queue_get(queue.encode("utf-8"))
         except Exception, e:
             raise cyclone.web.HTTPError(400, e)
 
@@ -77,16 +77,32 @@ class XmlrpcHandler(cyclone.web.XmlrpcRequestHandler):
 
 
 class RestQueueHandler(cyclone.web.RequestHandler):
-    """ RestQueueHandler applies HTTP Methods to a given queue.
-        GET gets an object out of the queue.
-        POST inserts an object in the queue (I know, it could be PUT)
-        DELETE is a TODO yet. Once you get the object, it's deleted for good.
+    """ 
+        RestQueueHandler applies HTTP Methods to a given queue.
+        GET /q/queuename gets an object out of the queue.
+        POST /q/queuename inserts an object in the queue (I know, it could be PUT). The payload comes in the parameter body
+        DELETE method is undefined. Once you get the object, it's deleted for good.
     """
+    @defer.inlineCallbacks
     def get(self, queue):
-        self.write('queue %s'% queue)
+        try:
+            policy, value = yield self.settings.oper.queue_get(queue.encode("utf-8"))
+        except Exception, e:
+            self.write("exception get: %s\n" % str(e))
+        else:
+            self.write("get: %s\n" % repr(value))
+        self.finish()
     
+    @defer.inlineCallbacks
     def post(self, queue):
-        self.write('queue %s' % queue)
+        body = self.get_argument("value")
+        try:
+            result = yield self.settings.oper.queue_add(queue.encode("utf-8"), value.encode("utf-8"))
+        except Exception, e:
+            self.write("set failed: %s\n" % str(e))
+        else:
+            self.write("set: %s\n" % result)
+        self.finish()
 
 
 class QueueHandler(cyclone.web.RequestHandler):
