@@ -56,6 +56,22 @@ def test_operations(opt, args):
         else:
             print 'empty queue'
 
+    if opt.get_policy == True:
+    	print "GET queue policy"
+        ret = yield ro.queue_policy_get(QUEUENAME)
+        print repr(ret)
+
+        if ret != None:
+            print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
+        else:
+            print 'empty queue policy'
+
+    if opt.set_policy == True:
+    	print "SET queue policy"
+        resp = yield ro.queue_policy_set(QUEUENAME, simplejson.dumps({'broadcast':True, 'enforce_take':False}))
+        print 'resp: %s' % resp
+
+
 
 def main():
     p = OptionParser()
@@ -63,6 +79,8 @@ def main():
     p.add_option("-c", "--consumer", action="store_true", dest="consumer", help="Run as consumer")
     p.add_option("-g", "--non-consumer", action="store_true", dest="non_consumer", help="Run as a non destructive consumer")
     p.add_option("-s", "--stats", action="store_true", dest="stats", help="Stats")
+    p.add_option("-q", "--get_policy", action="store_true", dest="get_policy", help="Get queue policy")
+    p.add_option("-j", "--set_policy", action="store_true", dest="set_policy", help="Set queue policy")
 
     (opt, args)=p.parse_args(sys.argv[1:])
 

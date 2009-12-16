@@ -158,6 +158,7 @@ class CometDispatcher(object):
         for handler, queue in self.presence.items():
             if not transientcache.has_key(queue):
                 # softget= True, wont remove stuff, but need fix so it wont flood with the same result...
+                # take = remove the key from queue AND the object from redis. suits a Map/Reduce setup
                 content = yield self.oper.queue_get(queue) #, softget=True)
                 if content:
                     transientcache[queue] = cyclone.escape.json_encode(content)

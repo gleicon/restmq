@@ -1,6 +1,7 @@
 # coding: utf-8
 
 from twisted.internet import defer
+import simplejson
 
 class RedisOperations:
     """
@@ -28,37 +29,37 @@ class RedisOperations:
 
     @defer.inlineCallbacks
     def queue_add(self, queue, value):
-        a=0
-        while a < 3:
-            try:
-                uuid = yield self.redis.incr("%s:UUID" % queue)
-                key = '%s:%d' % (queue, uuid)
-                res = yield self.redis.set(key, value)
-                
-                lkey = '%s:queue' % queue
-                
-                if uuid == 1: # TODO: use ismember()
-                    # add to queues set
-                    res = yield self.redis.sadd(self.QUEUESET, lkey)
-                    print "set add: %s" % res
-                break
-            except: #TODO: rethink if retrying is really necessary. Spread around if it is.
-                print "retry"
-                a=a+1
-                defer.returnValue(None)
+
+        uuid = yield self.redis.incr("%s:UUID" % queue)
+        key = '%s:%d' % (queue, uuid)
+        res = yield self.redis.set(key, value)
+        
+        lkey = '%s:queue' % queue
+        
+        if uuid == 1: # TODO: use ismember()
+            # either by checking uuid or by ismember, this is where you must know if the queue is a new one.
+            # add to queues set
+            res = yield self.redis.sadd(self.QUEUESET, lkey)
+            print "set add: %s" % res
+            # add default queue policy, for now just enforce_take is set
+            qpkey = "%s:queuepolicy" % (queue)
+            defaultqp = {'enforce_take':False, 'broadcast':True}
+            res = yield self.redis.set(qpkey, simplejson.dumps(defaultqp).encode('utf-8'))
+
 
         res = yield self.redis.push(lkey, key)
         defer.returnValue(key)
 
     @defer.inlineCallbacks
     def queue_get(self, queue, softget=False): 
-        # TODO: how to implement get reference counting ? is it necessary (redis opers are atomic...) 
-        # GETSET can help. MongoDB could do it if each queue object was a document. 
-        # It could be another kind of GET, which doesn't pops from the queue list' LINDEX can help too (LINDEX 0 is 'pop w/o removing')
-        # for now, non-destructive GET and refcounter are tied, and works by using the QUEUENAME:queue list as reference, and another key
-        # as the refcount for those keys which are subject to softget.
-        # refcounters are important in some job scheduler patterns.
-        # TODO: cleanup in delete
+        """
+            GET can be either soft or hard. 
+            SOFTGET means that the object is not POP'ed from its queue list. It only gets a refcounter which is incremente for each GET
+            HARDGET is the default behaviour. It POPs the key from its queue list.
+            NoSQL dbs as mongodb would have other ways to deal with it. May be an interesting port.
+            The reasoning behing refcounters is that they are important in some job scheduler patterns.
+            To really cleanup the queue, one would have to issue a DEL after a hard GET.
+        """
 
         lkey = '%s:queue' % queue
         if softget == False:
@@ -78,11 +79,17 @@ class RedisOperations:
     
     @defer.inlineCallbacks
     def queue_del(self, queue, okey):
+        """
+            DELetes an element from redis (not from the queue).
+            Its important to make sure a GET was issued before a DEL. Its a kinda hard to guess the direct object key w/o a GET tho.
+            the return value contains the key and value, which is a del return code from Redis. > 1 success and N keys where deleted, 0 == failure
+        """
         val = yield self.redis.delete(okey.encode('utf-8'))
-        defer.returnValue({'key':okey, 'value':val}) # del return 1 if one or more keys where delete, 0 if no key where found
+        defer.returnValue({'key':okey, 'value':val})
 
     @defer.inlineCallbacks
     def queue_stats(self, queue):
+        #TODO: more stats 
         lkey = '%s:queue' % queue
         ll = yield self.redis.llen(lkey)
         defer.returnValue({'len': ll})
@@ -111,3 +118,16 @@ class RedisOperations:
         if delk == 0:
             defer.returnValue(None)
         defer.returnValue({'key':okey, 'value':val})
+
+    @defer.inlineCallbacks
+    def queue_policy_set(self, queue, policy):
+        qpkey = "%s:queuepolicy" % (queue)
+        res = yield self.redis.set(qpkey.encode('utf-8'), policy.encode('utf-8'))
+        defer.returnValue({'queue': queue, 'response': res})
+
+    @defer.inlineCallbacks
+    def queue_policy_get(self, queue):
+        qpkey = "%s:queuepolicy" % (queue)
+        val = yield self.redis.get(qpkey.encode('utf-8'))
+        defer.returnValue({'queue':queue, 'value': val})
+
