@@ -15,11 +15,12 @@ class IndexHandler(cyclone.web.RequestHandler):
     def get(self):
         queue = self.get_argument("queue")
         try:
-            policy, value = yield self.settings.oper.queue_get(queue.encode("utf-8"))
+            policy, value = yield self.settings.oper.queue_get(queue)
+            assert value
         except Exception, e:
-            self.write("exception get: %s\n" % str(e))
-        else:
-            self.write("get: %s\n" % repr(value))
+            raise cyclone.web.HTTPError(404, str(e))
+        
+        self.write("get: %s\n" % repr(value))
         self.finish()
 
     @defer.inlineCallbacks
@@ -28,12 +29,68 @@ class IndexHandler(cyclone.web.RequestHandler):
         queue = self.get_argument("queue")
         value = self.get_argument("value")
         try:
-            result = yield self.settings.oper.queue_add(queue.encode("utf-8"), value.encode("utf-8"))
+            result = yield self.settings.oper.queue_add(queue, value)
         except Exception, e:
-            self.write("set failed: %s\n" % str(e))
-        else:
-            self.write("set: %s\n" % result)
+            raise cyclone.web.HTTPError(400, str(e))
+        
+        self.settings.comet.queue.put(1)
+        self.write("set: %s\n" % result)
         self.finish()
+
+
+class RestQueueHandler(cyclone.web.RequestHandler):
+    """ 
+        RestQueueHandler applies HTTP Methods to a given queue.
+        GET /q/queuename gets an object out of the queue.
+        POST /q/queuename inserts an object in the queue (I know, it could be PUT). The payload comes in the parameter body
+        DELETE method is undefined. Once you get the object, it's deleted for good.
+    """
+    @defer.inlineCallbacks
+    @cyclone.web.asynchronous
+    def get(self, queue):
+        try:
+            policy, value = yield self.settings.oper.queue_get(queue)
+            assert value
+        except Exception, e:
+            raise cyclone.web.HTTPError(404, str(e))
+        
+        self.write("get: %s\n" % repr(value))
+        self.finish()
+    
+    @defer.inlineCallbacks
+    @cyclone.web.asynchronous
+    def post(self, queue):
+        body = self.get_argument("value")
+        try:
+            result = yield self.settings.oper.queue_add(queue, value)
+        except Exception, e:
+            raise cyclone.web.HTTPError(400, str(e))
+
+        self.settings.comet.queue.put(1)
+        self.write("set: %s\n" % result)
+        self.finish()
+
+
+class XmlrpcHandler(cyclone.web.XmlrpcRequestHandler):
+    @defer.inlineCallbacks
+    @cyclone.web.asynchronous
+    def xmlrpc_get(self, queue):
+        try:
+            policy, value = yield self.settings.oper.queue_get(queue)
+            assert value
+        except Exception, e:
+            raise cyclone.web.HTTPError(404, str(e))
+        defer.returnValue(value)
+
+    @defer.inlineCallbacks
+    @cyclone.web.asynchronous
+    def xmlrpc_set(self, queue, value):
+        try:
+            result = yield self.settings.oper.queue_add(queue, value)
+        except Exception, e:
+            raise cyclone.web.HTTPError(400, e)
+        self.settings.comet.queue.put(1)
+        defer.returnValue(result)
 
 
 class StatusHandler(cyclone.web.RequestHandler):
@@ -48,60 +105,6 @@ class StatusHandler(cyclone.web.RequestHandler):
             'queues': list(allqueues['queues']),
             'count': len(allqueues['queues'])}
         self.write("%s\n" % cyclone.escape.json_encode(stats))
-        self.finish()
-
-
-class XmlrpcHandler(cyclone.web.XmlrpcRequestHandler):
-    @defer.inlineCallbacks
-    @cyclone.web.asynchronous
-    def xmlrpc_get(self, queue):
-        try:
-            policy, value = yield self.settings.oper.queue_get(queue.encode("utf-8"))
-        except Exception, e:
-            raise cyclone.web.HTTPError(400, e)
-
-        if value:
-            defer.returnValue(value)
-        else:
-            raise cyclone.web.HTTPError(404)
-
-    @defer.inlineCallbacks
-    @cyclone.web.asynchronous
-    def xmlrpc_set(self, queue, value):
-        try:
-            result = yield self.settings.oper.queue_add(queue.encode("utf-8"), value.encode("utf-8"))
-        except Exception, e:
-            raise cyclone.web.HTTPError(404, e)
-
-        defer.returnValue(result)
-
-
-class RestQueueHandler(cyclone.web.RequestHandler):
-    """ 
-        RestQueueHandler applies HTTP Methods to a given queue.
-        GET /q/queuename gets an object out of the queue.
-        POST /q/queuename inserts an object in the queue (I know, it could be PUT). The payload comes in the parameter body
-        DELETE method is undefined. Once you get the object, it's deleted for good.
-    """
-    @defer.inlineCallbacks
-    def get(self, queue):
-        try:
-            policy, value = yield self.settings.oper.queue_get(queue.encode("utf-8"))
-        except Exception, e:
-            self.write("exception get: %s\n" % str(e))
-        else:
-            self.write("get: %s\n" % repr(value))
-        self.finish()
-    
-    @defer.inlineCallbacks
-    def post(self, queue):
-        body = self.get_argument("value")
-        try:
-            result = yield self.settings.oper.queue_add(queue.encode("utf-8"), value.encode("utf-8"))
-        except Exception, e:
-            self.write("set failed: %s\n" % str(e))
-        else:
-            self.write("set: %s\n" % result)
         self.finish()
 
 
@@ -139,7 +142,7 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         deletion is not handled here for now.
         As each queue object has its own key, it can be done thru /queue interface
     """
-    def _disconnected(self, why, handler, queue_name):
+    def _disconnected(self, why, queue_name):
         try:
             self.settings.comet.presence[queue_name].remove(self)
             if not len(self.settings.comet.presence[queue_name]):
@@ -168,29 +171,53 @@ class CometQueueHandler(cyclone.web.RequestHandler):
 class CometDispatcher(object):
     def __init__(self, oper):
         self.oper = oper
+        self.queue = defer.DeferredQueue()
         self.presence = defaultdict(lambda: [])
         self.qcounter = defaultdict(lambda: 0)
-        self.task = task.LoopingCall(self.dispatch)
-        self.task.start(1)
+        task.LoopingCall(self.counters_cleanup).start(30)
+        task.LoopingCall(self.dispatch_content).start(2)
+        self.queue.get().addCallback(self._new_data)
+
+    def _new_data(self, ign):
+        self.queue.get().addCallback(self._new_data)
+        return self.dispatch_content()
+
+    def counters_cleanup(self):
+        for queue_name in self.qcounter:
+            if not self.presence.has_key(queue_name):
+                self.qcounter.pop(queue_name)
 
     @defer.inlineCallbacks
-    def dispatch(self):
+    def dispatch_content(self):
         for queue_name, handlers in self.presence.items():
-            policy, content = yield self.oper.queue_get(queue_name)
+            size = len(handlers)
+            if not size:
+                continue
 
-            if policy == something.BROADCAST:
+            try:
+                policy, content = yield self.oper.queue_get(queue_name)
+                assert (policy and content)
+            except:
+                continue
+
+            if policy == core.POLICY_BROADCAST:
                 self._dump(handlers, content)
 
-            elif policy == something.ROUNDROBIN:
-                idx = self.qcounter[queue_name] % len(handlers)
+            elif policy == core.POLICY_ROUNDROBIN:
+                idx = self.qcounter[queue_name] % size
                 self._dump((handlers[idx],), content)
                 self.qcounter[queue_name] += 1
+
         defer.returnValue(None)
 
     def _dump(self, handlers, content):
         for handler in handlers:
-            handler.write("%s\n" % content)
-            handler.flush()
+            try:
+                handler.write("%s\n" % content)
+                handler.flush()
+            except Exception, e:
+                log.write("cannot dump to comet client: %s" % str(e))
+
 
 class Application(cyclone.web.Application):
     def __init__(self):
@@ -198,8 +225,8 @@ class Application(cyclone.web.Application):
             (r"/",       IndexHandler),
             (r"/q/(.*)", RestQueueHandler),
             (r"/c/(.*)", CometQueueHandler),
-            (r"/stats",  StatusHandler),
             (r"/xmlrpc", XmlrpcHandler),
+            (r"/stats",  StatusHandler),
             (r"/queue",  QueueHandler)
         ]
         db = txredisapi.lazyRedisConnectionPool()
