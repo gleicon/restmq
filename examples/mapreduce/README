@@ -1,0 +1,19 @@
+Instant ghetto Map/Reduce with RestMQ
+
+
+Download a huge text file. E.G: The Bible: http://www.gutenberg.org/dirs/etext90/kjv10.txt or Best Russian Short Stories: http://www.gutenberg.org/files/13437/13437-8.txt
+
+Split it:
+    $ mkdir files
+    $ split -l 1000 yourebook.txt files/bookfrag-
+
+In another window, run a consumer:
+
+    $ python reduce.py
+
+Now, run the producer:
+    $ for a in `ls files`; do python map files/$a; done
+
+The producing phase is very quick, depending almost on python's parsing speed. The consuming phase still running at the top speed which the internal task loop runs, but it's being worked on.
+
+
