@@ -60,7 +60,7 @@ class RedisOperations:
             The reasoning behing refcounters is that they are important in some job scheduler patterns.
             To really cleanup the queue, one would have to issue a DEL after a hard GET.
         """
-
+        policy = None
         lkey = '%s:queue' % queue
         if softget == False:
             okey = yield self.redis.pop(lkey)
@@ -68,14 +68,17 @@ class RedisOperations:
             okey = yield self.redis.lindex(lkey, "0")
 
         if okey == None:
-            defer.returnValue(None)
+            defer.returnValue((None, None))
             return
-        val = yield self.redis.get(okey.encode('utf-8'))
+        #val = yield self.redis.get(okey.encode('utf-8'))
+        qpkey = "%s:queuepolicy" % queue.encode('utf-8')
+        (policy, val) = yield self.redis.mget(qpkey, okey.encode('utf-8'))
         c=0
         if softget == True:
             c = yield self.redis.incr('%s:refcount' % okey.encode('utf-8'))
 
-        defer.returnValue({'key':okey, 'value':val, 'count':c})
+        defer.returnValue((policy, {'key':okey, 'value':val, 'count':c}))
+
     
     @defer.inlineCallbacks
     def queue_del(self, queue, okey):
@@ -101,23 +104,26 @@ class RedisOperations:
     
     @defer.inlineCallbacks
     def queue_getdel(self, queue):
+        policy = None
         lkey = '%s:queue' % queue
         okey = yield self.redis.pop(lkey) # take from queue's list
         if okey == None:
-            defer.returnValue(False)
+            defer.returnValue((None, False))
             return
         nkey = '%s:lock' % okey.encode('utf-8')
         ren = yield self.redis.rename(okey.encode('utf-8'), nkey.encode('utf-8')) # rename key
 
         if ren == None:
-            defer.returnValue(None)
+            defer.returnValue((None,None))
             return
 
-        val = yield self.redis.get(nkey.encode('utf-8'))
+        qpkey = "%s:queuepolicy" % queue.encode('utf-8')
+        (policy, val) = yield self.redis.mget(qpkey, nkey.encode('utf-8'))
+#        val = yield self.redis.get(nkey.encode('utf-8'))
         delk = yield self.redis.delete(nkey.encode('utf-8'))
         if delk == 0:
-            defer.returnValue(None)
-        defer.returnValue({'key':okey, 'value':val})
+            defer.returnValue((None, None))
+        defer.returnValue((policy, {'key':okey, 'value':val}))
 
     @defer.inlineCallbacks
     def queue_policy_set(self, queue, policy):
