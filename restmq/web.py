@@ -5,6 +5,7 @@ import cyclone.web
 import cyclone.escape
 from restmq import core
 from restmq import dispatch
+from collections import defaultdict
 from twisted.internet import task, defer
 
 
@@ -122,9 +123,11 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         deletion is not handled here for now.
         As each queue object has its own key, it can be done thru /queue interface
     """
-    def _disconnected(self, why, handler):
+    def _disconnected(self, why, handler, queue_name):
         try:
-            self.settings.comet.presence.pop(handler)
+            self.settings.comet.presence[queue_name].remove(self)
+            if not len(self.settings.comet.presence[queue_name]):
+                self.settings.comet.presence.pop(queue_name)
         except:
             pass
 
@@ -140,35 +143,38 @@ class CometQueueHandler(cyclone.web.RequestHandler):
             It can be changed by removing softget=True from oper_get request. This way, it will be truly a http consumer.
         """
         self.set_header("Content-Type", "text/plain")
-        self.settings.comet.presence[self] = queue.encode("utf-8")
-        self.notifyFinish().addCallback(self._disconnected, self)
+        queue_name = queue.encode("utf-8")
+        self.settings.comet.presence[queue_name].append(self)
+        self.notifyFinish().addCallback(self._disconnected, queue_name)
         self.flush()
 
 
 class CometDispatcher(object):
     def __init__(self, oper):
         self.oper = oper
-        self.presence={} # TODO: could use redis itself to hold user presence
+        self.presence = defaultdict(lambda: [])
+        self.qcounter = defaultdict(lambda: 0)
         self.task = task.LoopingCall(self.dispatch)
         self.task.start(1)
 
     @defer.inlineCallbacks
     def dispatch(self):
-        transientcache={}
-        for handler, queue in self.presence.items():
-            if not transientcache.has_key(queue):
-                # softget= True, wont remove stuff, but need fix so it wont flood with the same result...
-                # take = remove the key from queue AND the object from redis. suits a Map/Reduce setup
-                content = yield self.oper.queue_get(queue) #, softget=True)
-                if content:
-                    transientcache[queue] = cyclone.escape.json_encode(content)
+        for queue_name, handlers in self.presence.items():
+            policy, content = yield self.oper.queue_get(queue_name)
 
-            v = transientcache.get(queue)
-            if v:
-                handler.write('%s\n' % v)
-                handler.flush()
+            if policy == something.BROADCAST:
+                self._dump(handlers, content)
+
+            elif policy == something.ROUNDROBIN:
+                idx = self.qcounter[queue_name] % len(handlers)
+                self._dump((handlers[idx],), content)
+                self.qcounter[queue_name] += 1
         defer.returnValue(None)
 
+    def _dump(self, handlers, content):
+        for handler in handlers:
+            handler.write("%s\n" % content)
+            handler.flush()
 
 class Application(cyclone.web.Application):
     def __init__(self):
