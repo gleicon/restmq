@@ -66,7 +66,7 @@ def test_operations(opt, args):
 
     if opt.set_policy == True:
     	print "SET queue policy"
-        resp = yield ro.queue_policy_set(QUEUENAME, simplejson.dumps({'broadcast':True, 'enforce_take':False}))
+        resp = yield ro.queue_policy_set(QUEUENAME, "roundrobin")
         print 'resp: %s' % resp
 
     if opt.get_del == True:
