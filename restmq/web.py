@@ -200,7 +200,7 @@ class CometDispatcher(object):
         self.presence = defaultdict(lambda: [])
         self.qcounter = defaultdict(lambda: 0)
         self.queue.get().addCallback(self._new_data)
-        task.LoopingCall(self._auto_dispatch).start(2)
+        task.LoopingCall(self._auto_dispatch).start(1) # secs between checkings
         task.LoopingCall(self._counters_cleanup).start(30)
 
     def _new_data(self, queue_name):
@@ -222,8 +222,8 @@ class CometDispatcher(object):
         if handlers:
             size = len(handlers)
             try:
-                policy, content = yield self.oper.queue_get(queue_name)
-                content = cyclone.escape.json_encode(content)
+                # policy, content = yield self.oper.queue_get(queue_name)
+                policy, content = yield self.oper.queue_tail(queue_name)
                 assert (policy and content)
             except:
                 defer.returnValue(None)
@@ -239,8 +239,9 @@ class CometDispatcher(object):
     def _dump(self, handlers, content):
         for handler in handlers:
             try:
-                handler.write("%s\n" % content)
-                handler.flush()
+                for c in content:
+                    handler.write("%s\n" % cyclone.escape.json_encode(c))
+                    handler.flush()
             except Exception, e:
                 log.write("cannot dump to comet client: %s" % str(e))
 

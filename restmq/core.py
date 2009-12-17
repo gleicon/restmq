@@ -169,3 +169,37 @@ class RedisOperations:
         qpkey = "%s:queuepolicy" % (queue)
         val = yield self.redis.get(qpkey)
         defer.returnValue({'queue':queue, 'value': self.inverted_policies.get(val, "unknown")})
+
+    @defer.inlineCallbacks
+    def queue_tail(self, queue, keyno=10): 
+        """
+            TAIL follows on GET, but returns keyno keys instead of only one key.
+            keyno could be a LLEN function over the queue list, but it lends almost the same effect.
+            LRANGE could too fetch the latest keys, even if there was less than keyno keys. MGET could be used too.
+            TODO: does DELete belongs here ?
+            return is a tuple (policy, returnvalues[])
+        """
+        policy = None
+        queue = self.normalize(queue)
+        lkey = '%s:queue' % queue
+        keys=[]
+        multivalue = []
+        for a in range (keyno):
+            t = yield self.redis.pop(lkey)
+            if t != None: 
+                k = t.encode('utf-8')
+                keys.append(k)
+                v = yield self.redis.get(k) # queue_getdel would keep the db clean
+                multivalue.append({'key': k, 'value':v.encode('utf-8')})
+        
+        if len(keys) == 0:
+            defer.returnValue((None, None))
+            return
+
+        qpkey = "%s:queuepolicy" % queue
+        policy = yield self.redis.get(qpkey)
+        #val = yield self.redis.mget(*keys) #w00t
+        #defer.returnValue((policy or POLICY_BROADCAST, {'keys':keys, 'values':val, 'meh':meh}))
+        defer.returnValue((policy or POLICY_BROADCAST, multivalue))
+
+

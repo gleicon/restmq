@@ -8,7 +8,7 @@ from restmq import core
 from optparse import OptionParser
 from twisted.internet import defer, reactor
         
-QUEUENAME = 'test'
+QUEUENAME = 'reducer'
 
 @defer.inlineCallbacks
 def test_operations(opt, args):
@@ -70,13 +70,23 @@ def test_operations(opt, args):
         print 'resp: %s' % resp
 
     if opt.get_del == True:
-    	print "Running as consumer"
+    	print "Running as getdel consumer"
         (policy, ret) = yield ro.queue_getdel(QUEUENAME)
         if ret != None and ret != False:
             print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
             print "policy: %s" % policy
         else:
             print 'empty queue'
+
+    if opt.tail_mget == True:
+    	print "Running as tail multiget"
+        (policy, ret) = yield ro.queue_tail(QUEUENAME)
+        if ret != None and ret != False:
+            print "value: %s" % repr(ret) #simplejson.loads(ret['value'])
+            print "policy: %s" % policy
+        else:
+            print 'empty queue'
+
 
 
 def main():
@@ -88,6 +98,8 @@ def main():
     p.add_option("-q", "--get_policy", action="store_true", dest="get_policy", help="Get queue policy")
     p.add_option("-j", "--set_policy", action="store_true", dest="set_policy", help="Set queue policy")
     p.add_option("-k", "--get_delete", action="store_true", dest="get_del", help="Consumer get del")
+    p.add_option("-t", "--tail_multiget", action="store_true", dest="tail_mget", help="Multi get 10 keys")
+
 
     (opt, args)=p.parse_args(sys.argv[1:])
 
