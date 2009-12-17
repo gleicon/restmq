@@ -1,0 +1,39 @@
+supported queue policies are:
+ 1. broadcast - the default behavior of every queue
+ 2. roundrobin - great for distributing the content of a queue
+
+consider the following:
+
+ 1. a producer starts adding content to a queue, let's say "test"
+ 2. four consumers keep continuously fetching data from the queue
+    "test" through the comet api
+
+if the queue policy is "broadcast", each consumer will get exactly
+the same result as they are added to the queue.
+
+however, when the policy is set to "roundrobin", the contents added
+to that queue will be distributed over the N comet consumers, in a 
+round robin fashion.
+
+cute, isn't it?
+
+EXAMPLE:
+
+open two or three terminals and run the following command to start
+fetching data from the queue test:
+
+$ curl -D - http://localhost:8888/c/test
+
+on yet another terminal, set the queue policy to "roundrobin":
+
+$ curl -D - -X POST -d "policy=roundrobin" http://localhost:8888/p/test
+
+if you want to make sure what policy is set, use GET:
+
+$ curl http://localhost:8888/p/test
+
+now, add some content into that queue:
+
+for x in {1..1000}; do curl -X POST -d "queue=test&value=foobar" http://localhost:8888/; done
+
+that's is. :)

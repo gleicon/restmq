@@ -31,11 +31,10 @@ def test_operations(opt, args):
 
     if opt.consumer == True:
     	print "Running as consumer"
-        ret = yield ro.queue_get( QUEUENAME)
-        print repr(ret)
-
+        (policy, ret) = yield ro.queue_get( QUEUENAME)
         if ret != None:
             print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
+            print "policy: %s" % policy
         else:
             print 'empty queue'
 
@@ -48,11 +47,34 @@ def test_operations(opt, args):
 
     if opt.non_consumer == True:
     	print "Running as consumer"
-        ret = yield ro.queue_get(QUEUENAME, softget=True)
+        (policy, ret) = yield ro.queue_get( QUEUENAME, softget=True)
+        if ret != None:
+            print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
+            print "policy: %s" % policy
+        else:
+            print 'empty queue'
+
+    if opt.get_policy == True:
+    	print "GET queue policy"
+        ret = yield ro.queue_policy_get(QUEUENAME)
         print repr(ret)
 
         if ret != None:
             print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
+        else:
+            print 'empty queue policy'
+
+    if opt.set_policy == True:
+    	print "SET queue policy"
+        resp = yield ro.queue_policy_set(QUEUENAME, "roundrobin")
+        print 'resp: %s' % resp
+
+    if opt.get_del == True:
+    	print "Running as consumer"
+        (policy, ret) = yield ro.queue_getdel(QUEUENAME)
+        if ret != None and ret != False:
+            print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
+            print "policy: %s" % policy
         else:
             print 'empty queue'
 
@@ -63,6 +85,9 @@ def main():
     p.add_option("-c", "--consumer", action="store_true", dest="consumer", help="Run as consumer")
     p.add_option("-g", "--non-consumer", action="store_true", dest="non_consumer", help="Run as a non destructive consumer")
     p.add_option("-s", "--stats", action="store_true", dest="stats", help="Stats")
+    p.add_option("-q", "--get_policy", action="store_true", dest="get_policy", help="Get queue policy")
+    p.add_option("-j", "--set_policy", action="store_true", dest="set_policy", help="Set queue policy")
+    p.add_option("-k", "--get_delete", action="store_true", dest="get_del", help="Consumer get del")
 
     (opt, args)=p.parse_args(sys.argv[1:])
 

@@ -1,6 +1,11 @@
 # coding: utf-8
 
+import types
+import simplejson
 from twisted.internet import defer
+
+POLICY_BROADCAST = 1
+POLICY_ROUNDROBIN = 2
 
 class RedisOperations:
     """
@@ -22,44 +27,63 @@ class RedisOperations:
     """
 
     def __init__(self, redis):
-        self.QUEUESET = 'QUEUESET' # the set which holds all queues
         self.redis = redis
+        self.policies = {
+            "broadcast": POLICY_BROADCAST,
+            "roundrobin": POLICY_ROUNDROBIN,
+        }
+        self.inverted_policies = dict([[v, k] for k, v in self.policies.items()])
+        self.QUEUESET = 'QUEUESET' # the set which holds all queues
 
-
+    def normalize(self, item):
+        if isinstance(item, types.StringType):
+            return item
+        elif isinstance(item, types.UnicodeType):
+            try:
+                return item.encode("utf-8")
+            except:
+                raise ValueError("strings must be utf-8")
+        else:
+            raise ValueError("data must be utf-8")
+        
     @defer.inlineCallbacks
     def queue_add(self, queue, value):
-        a=0
-        while a < 3:
-            try:
-                uuid = yield self.redis.incr("%s:UUID" % queue)
-                key = '%s:%d' % (queue, uuid)
-                res = yield self.redis.set(key, value)
-                
-                lkey = '%s:queue' % queue
-                
-                if uuid == 1: # TODO: use ismember()
-                    # add to queues set
-                    res = yield self.redis.sadd(self.QUEUESET, lkey)
-                    print "set add: %s" % res
-                break
-            except: #TODO: rethink if retrying is really necessary. Spread around if it is.
-                print "retry"
-                a=a+1
-                defer.returnValue(None)
+        queue, value = self.normalize(queue), self.normalize(value)
+
+        uuid = yield self.redis.incr("%s:UUID" % queue)
+        key = '%s:%d' % (queue, uuid)
+        res = yield self.redis.set(key, value)
+        
+        lkey = '%s:queue' % queue
+        
+        if uuid == 1: # TODO: use ismember()
+            # either by checking uuid or by ismember, this is where you must know if the queue is a new one.
+            # add to queues set
+            res = yield self.redis.sadd(self.QUEUESET, lkey)
+            #print "set add: %s" % res
+
+            # add default queue policy, for now just enforce_take is set
+            #yield self.queue_policy_set(queue, "broadcast")
+            #qpkey = "%s:queuepolicy" % (queue)
+            #defaultqp = {'enforce_take':False, 'broadcast':True}
+            #res = yield self.redis.set(qpkey, simplejson.dumps(defaultqp).encode('utf-8'))
+
 
         res = yield self.redis.push(lkey, key)
         defer.returnValue(key)
 
     @defer.inlineCallbacks
     def queue_get(self, queue, softget=False): 
-        # TODO: how to implement get reference counting ? is it necessary (redis opers are atomic...) 
-        # GETSET can help. MongoDB could do it if each queue object was a document. 
-        # It could be another kind of GET, which doesn't pops from the queue list' LINDEX can help too (LINDEX 0 is 'pop w/o removing')
-        # for now, non-destructive GET and refcounter are tied, and works by using the QUEUENAME:queue list as reference, and another key
-        # as the refcount for those keys which are subject to softget.
-        # refcounters are important in some job scheduler patterns.
-        # TODO: cleanup in delete
-
+        """
+            GET can be either soft or hard. 
+            SOFTGET means that the object is not POP'ed from its queue list. It only gets a refcounter which is incremente for each GET
+            HARDGET is the default behaviour. It POPs the key from its queue list.
+            NoSQL dbs as mongodb would have other ways to deal with it. May be an interesting port.
+            The reasoning behing refcounters is that they are important in some job scheduler patterns.
+            To really cleanup the queue, one would have to issue a DEL after a hard GET.
+        """
+        policy = None
+        queue = self.normalize(queue)
         lkey = '%s:queue' % queue
         if softget == False:
             okey = yield self.redis.pop(lkey)
@@ -67,23 +91,34 @@ class RedisOperations:
             okey = yield self.redis.lindex(lkey, "0")
 
         if okey == None:
-            defer.returnValue(None)
+            defer.returnValue((None, None))
             return
-        val = yield self.redis.get(okey.encode('utf-8'))
+
+        #val = yield self.redis.get(okey.encode('utf-8'))
+        qpkey = "%s:queuepolicy" % queue
+        (policy, val) = yield self.redis.mget(qpkey, okey.encode('utf-8'))
         c=0
         if softget == True:
             c = yield self.redis.incr('%s:refcount' % okey.encode('utf-8'))
 
-        defer.returnValue({'key':okey, 'value':val, 'count':c})
+        defer.returnValue((policy or POLICY_BROADCAST, {'key':okey, 'value':val, 'count':c}))
+
     
     @defer.inlineCallbacks
     def queue_del(self, queue, okey):
-        val = yield self.redis.delete(okey.encode('utf-8'))
-        defer.returnValue({'key':okey, 'value':val}) # del return 1 if one or more keys where delete, 0 if no key where found
+        """
+            DELetes an element from redis (not from the queue).
+            Its important to make sure a GET was issued before a DEL. Its a kinda hard to guess the direct object key w/o a GET tho.
+            the return value contains the key and value, which is a del return code from Redis. > 1 success and N keys where deleted, 0 == failure
+        """
+        queue, okey = self.normalize(queue), self.normalize(okey)
+        val = yield self.redis.delete(okey)
+        defer.returnValue({'key':okey, 'value':val})
 
     @defer.inlineCallbacks
     def queue_stats(self, queue):
-        lkey = '%s:queue' % queue
+        #TODO: more stats 
+        lkey = '%s:queue' % self.normalize(queue)
         ll = yield self.redis.llen(lkey)
         defer.returnValue({'len': ll})
 
@@ -94,20 +129,43 @@ class RedisOperations:
     
     @defer.inlineCallbacks
     def queue_getdel(self, queue):
+        policy = None
+        queue = self.normalize(queue)
         lkey = '%s:queue' % queue
+
         okey = yield self.redis.pop(lkey) # take from queue's list
         if okey == None:
-            defer.returnValue(False)
+            defer.returnValue((None, False))
             return
-        nkey = '%s:lock' % okey.encode('utf-8')
-        ren = yield self.redis.rename(okey.encode('utf-8'), nkey.encode('utf-8')) # rename key
+        okey = self.normalize(okey)
+        nkey = '%s:lock' % okey
+        ren = yield self.redis.rename(okey, nkey) # rename key
 
         if ren == None:
-            defer.returnValue(None)
+            defer.returnValue((None,None))
             return
 
-        val = yield self.redis.get(nkey.encode('utf-8'))
-        delk = yield self.redis.delete(nkey.encode('utf-8'))
+        qpkey = "%s:queuepolicy" % queue
+        (policy, val) = yield self.redis.mget(qpkey, nkey)
+        delk = yield self.redis.delete(nkey)
         if delk == 0:
-            defer.returnValue(None)
-        defer.returnValue({'key':okey, 'value':val})
+            defer.returnValue((None, None))
+        defer.returnValue((policy, {'key':okey, 'value':val}))
+
+    @defer.inlineCallbacks
+    def queue_policy_set(self, queue, policy):
+        queue, policy = self.normalize(queue), self.normalize(policy)
+        if policy in ("broadcast", "roundrobin"):
+            policy_id = self.policies[policy]
+            qpkey = "%s:queuepolicy" % (queue)
+            res = yield self.redis.set(qpkey, policy_id)
+            defer.returnValue({'queue': queue, 'response': res})
+        else:
+            defer.returnValue({'queue': queue, 'response': ValueError("invalid policy: %s" % repr(policy))})
+
+    @defer.inlineCallbacks
+    def queue_policy_get(self, queue):
+        queue = self.normalize(queue)
+        qpkey = "%s:queuepolicy" % (queue)
+        val = yield self.redis.get(qpkey)
+        defer.returnValue({'queue':queue, 'value': self.inverted_policies.get(val, "unknown")})

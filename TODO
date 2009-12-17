@@ -2,7 +2,7 @@ engine.py:    - TODO: the object may have an expiration instead of straight dele
 engine.py:    - TODO: RPOPLPUSH can be used to put it in another queue as a backlog
 engine.py:    - TODO: persistence management (on/off/status)
 engine.py:                if uuid == 1: # TODO: use ismember()
-engine.py:            except: #TODO: rethink if retrying is really necessary. Spread around if it is.
 engine.py:        # TODO: how to implement get reference counting ? is it necessary (redis opers are atomic...) 
 engine.py:        # TODO: cleanup in delete
-restmq.tac:        DELETE is a TODO yet. Once you get the object, it's deleted for good.
+
+build a presence service (or use XMPP stuff) to sync more than 1 server doing comet.
