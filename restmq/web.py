@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import os
 import types
 import txredisapi
 import cyclone.web
@@ -236,6 +237,16 @@ class CometDispatcher(object):
                 except Exception, e:
                     log.write("cannot dump to comet client: %s" % str(e))
 
+class JobQueueInfoHandler(cyclone.web.RequestHandler):
+    @defer.inlineCallbacks
+    @cyclone.web.asynchronous
+    def get(self, queue):
+        jobs= yield self.settings.oper.queue_last_items(queue)
+        job_count = yield self.settings.oper.queue_len(queue)
+        queue_obj_count = yield self.settings.oper.queue_count_elements(queue)
+        self.render(self.settings.template_path+"/jobs.html", queue=queue, jobs=jobs,job_count=job_count, queue_size=queue_obj_count)
+        self.finish()
+
 
 class Application(cyclone.web.Application):
     def __init__(self):
@@ -246,14 +257,17 @@ class Application(cyclone.web.Application):
             (r"/p/(.*)", PolicyQueueHandler),
             (r"/xmlrpc", XmlrpcHandler),
             (r"/stats",  StatusHandler),
-            (r"/queue",  QueueHandler)
+            (r"/queue",  QueueHandler),
+            (r"/j/(.*)", JobQueueInfoHandler)
         ]
         db = txredisapi.lazyRedisConnectionPool()
         oper = core.RedisOperations(db)
+    
         settings = {
             "db": db,
             "comet": CometDispatcher(oper),
             "static_path": "./static",
+            "template_path": os.path.join(os.path.dirname(__file__), "templates"),
             "oper": oper,
         }
 

@@ -1,0 +1,16 @@
+<html>
+   <head>
+      <title>jobs in queue {{ queue  }}</title>
+   </head>
+   <body>
+		queue name: {{ queue }}<br>
+		queue objects: {{ queue_size }}<br>
+		job count: {{ job_count }}<br>
+	<p>latest 10 jobs</p>
+     <ul>
+       {% for job in jobs %}
+         <li>{{ escape(job) }}</li>
+       {% end %}
+     </ul>
+   </body>
+ </html>

@@ -8,7 +8,7 @@ from restmq import core
 from optparse import OptionParser
 from twisted.internet import defer, reactor
         
-QUEUENAME = 'reducer'
+QUEUENAME = 'test'
 
 @defer.inlineCallbacks
 def test_operations(opt, args):
@@ -87,6 +87,23 @@ def test_operations(opt, args):
         else:
             print 'empty queue'
 
+    if opt.count_objects == True:
+    	print "Running as count object"
+        ret = yield ro.queue_count_elements(QUEUENAME)
+        if ret != None and ret != False:
+            print "value: %s" % repr(ret) #simplejson.loads(ret['value'])
+        else:
+            print 'empty queue'
+
+    if opt.queue_last_items == True:
+    	print "Running as count object"
+        ret = yield ro.queue_last_items(QUEUENAME)
+        if ret != None and ret != False:
+            print "value: %s" % repr(ret) #simplejson.loads(ret['value'])
+        else:
+            print 'empty queue'
+
+
 
 
 def main():
@@ -99,6 +116,8 @@ def main():
     p.add_option("-j", "--set_policy", action="store_true", dest="set_policy", help="Set queue policy")
     p.add_option("-k", "--get_delete", action="store_true", dest="get_del", help="Consumer get del")
     p.add_option("-t", "--tail_multiget", action="store_true", dest="tail_mget", help="Multi get 10 keys")
+    p.add_option("-u", "--count_objects", action="store_true", dest="count_objects", help="Count objects of a given queue")
+    p.add_option("-i", "--list_last_items", action="store_true", dest="queue_last_items", help="List the latest queue items")
 
 
     (opt, args)=p.parse_args(sys.argv[1:])

@@ -116,8 +116,7 @@ class RedisOperations:
         defer.returnValue({'key':okey, 'value':val})
 
     @defer.inlineCallbacks
-    def queue_stats(self, queue):
-        #TODO: more stats 
+    def queue_len(self, queue):
         lkey = '%s:queue' % self.normalize(queue)
         ll = yield self.redis.llen(lkey)
         defer.returnValue({'len': ll})
@@ -198,8 +197,25 @@ class RedisOperations:
 
         qpkey = "%s:queuepolicy" % queue
         policy = yield self.redis.get(qpkey)
-        #val = yield self.redis.mget(*keys) #w00t
-        #defer.returnValue((policy or POLICY_BROADCAST, {'keys':keys, 'values':val, 'meh':meh}))
         defer.returnValue((policy or POLICY_BROADCAST, multivalue))
+
+    @defer.inlineCallbacks
+    def queue_count_elements(self, queue):
+        # it hurts, uses too much space :(
+        # but it's necessary to evaluate how many objects still undeleted on redis.
+        lkey = '%s*' % self.normalize(queue)
+        ll = yield self.redis.keys(lkey)
+        defer.returnValue({"objects":len(ll)})
+
+    @defer.inlineCallbacks
+    def queue_last_items(self, queue, count=10): 
+        """
+            returns a list with the last count items in the queue
+        """
+        queue = self.normalize(queue)
+        lkey = '%s:queue' % queue
+        multivalue = yield self.redis.lrange(lkey, 0, count-1)
+
+        defer.returnValue( multivalue)
 
 
