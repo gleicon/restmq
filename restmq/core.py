@@ -27,13 +27,13 @@ class RedisOperations:
     """
 
     def __init__(self, redis):
-        self.QUEUESET = 'QUEUESET' # the set which holds all queues
         self.redis = redis
         self.policies = {
             "broadcast": POLICY_BROADCAST,
             "roundrobin": POLICY_ROUNDROBIN,
         }
-
+        self.inverted_policies = dict([[v, k] for k, v in self.policies.items()])
+        self.QUEUESET = 'QUEUESET' # the set which holds all queues
 
     def normalize(self, item):
         if isinstance(item, types.StringType):
@@ -63,7 +63,7 @@ class RedisOperations:
             #print "set add: %s" % res
 
             # add default queue policy, for now just enforce_take is set
-            yield self.queue_policy_set(queue, "broadcast")
+            #yield self.queue_policy_set(queue, "broadcast")
             #qpkey = "%s:queuepolicy" % (queue)
             #defaultqp = {'enforce_take':False, 'broadcast':True}
             #res = yield self.redis.set(qpkey, simplejson.dumps(defaultqp).encode('utf-8'))
@@ -168,4 +168,4 @@ class RedisOperations:
         queue = self.normalize(queue)
         qpkey = "%s:queuepolicy" % (queue)
         val = yield self.redis.get(qpkey)
-        defer.returnValue({'queue':queue, 'value': val})
+        defer.returnValue({'queue':queue, 'value': self.inverted_policies.get(val, "unknown")})

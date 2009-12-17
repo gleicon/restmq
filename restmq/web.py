@@ -33,7 +33,7 @@ class IndexHandler(cyclone.web.RequestHandler):
         except Exception, e:
             raise cyclone.web.HTTPError(400, str(e))
         
-        self.settings.comet.queue.put(1)
+        self.settings.comet.queue.put(queue)
         self.write("set: %s\n" % result)
         self.finish()
 
@@ -66,7 +66,7 @@ class RestQueueHandler(cyclone.web.RequestHandler):
         except Exception, e:
             raise cyclone.web.HTTPError(400, str(e))
 
-        self.settings.comet.queue.put(1)
+        self.settings.comet.queue.put(queue)
         self.write("set: %s\n" % result)
         self.finish()
 
@@ -89,23 +89,8 @@ class XmlrpcHandler(cyclone.web.XmlrpcRequestHandler):
             result = yield self.settings.oper.queue_add(queue, value)
         except Exception, e:
             raise cyclone.web.HTTPError(400, e)
-        self.settings.comet.queue.put(1)
+        self.settings.comet.queue.put(queue)
         defer.returnValue(result)
-
-
-class StatusHandler(cyclone.web.RequestHandler):
-    @defer.inlineCallbacks
-    @cyclone.web.asynchronous
-    def get(self):
-        # application/json or text/json ? 
-        self.set_header("Content-Type", "text/plain")
-        allqueues = yield self.settings.oper.queue_all()
-
-        stats={'redis': repr(self.settings.db), 
-            'queues': list(allqueues['queues']),
-            'count': len(allqueues['queues'])}
-        self.write("%s\n" % cyclone.escape.json_encode(stats))
-        self.finish()
 
 
 class QueueHandler(cyclone.web.RequestHandler):
@@ -168,37 +153,79 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         self.flush()
 
 
+class PolicyQueueHandler(cyclone.web.RequestHandler):
+    @defer.inlineCallbacks
+    @cyclone.web.asynchronous
+    def get(self, queue):
+        try:
+            policy = yield self.settings.oper.queue_policy_get(queue)
+        except Exception, e:
+            raise cyclone.web.HTTPError(404, str(e))
+
+        self.write(policy)
+        self.finish()
+
+    @defer.inlineCallbacks
+    @cyclone.web.asynchronous
+    def post(self, queue):
+        policy = self.get_argument("policy")
+        try:
+            result = yield self.settings.oper.queue_policy_set(queue, policy)
+        except Exception, e:
+            raise cyclone.web.HTTPError(400, str(e))
+
+        self.write(result)
+        self.finish()
+
+
+class StatusHandler(cyclone.web.RequestHandler):
+    @defer.inlineCallbacks
+    @cyclone.web.asynchronous
+    def get(self):
+        # application/json or text/json ? 
+        self.set_header("Content-Type", "text/plain")
+        allqueues = yield self.settings.oper.queue_all()
+
+        stats={'redis': repr(self.settings.db), 
+            'queues': list(allqueues['queues']),
+            'count': len(allqueues['queues'])}
+        self.write("%s\n" % cyclone.escape.json_encode(stats))
+        self.finish()
+
+
 class CometDispatcher(object):
     def __init__(self, oper):
         self.oper = oper
         self.queue = defer.DeferredQueue()
         self.presence = defaultdict(lambda: [])
         self.qcounter = defaultdict(lambda: 0)
-        task.LoopingCall(self.counters_cleanup).start(30)
-        task.LoopingCall(self.dispatch_content).start(2)
+        self.queue.get().addCallback(self._new_data)
+        task.LoopingCall(self._auto_dispatch).start(2)
+        task.LoopingCall(self._counters_cleanup).start(30)
+
+    def _new_data(self, queue_name):
+        self.dispatch(queue_name)
         self.queue.get().addCallback(self._new_data)
 
-    def _new_data(self, ign):
-        self.queue.get().addCallback(self._new_data)
-        return self.dispatch_content()
-
-    def counters_cleanup(self):
+    def _counters_cleanup(self):
         for queue_name in self.qcounter:
             if not self.presence.has_key(queue_name):
                 self.qcounter.pop(queue_name)
 
-    @defer.inlineCallbacks
-    def dispatch_content(self):
+    def _auto_dispatch(self):
         for queue_name, handlers in self.presence.items():
-            size = len(handlers)
-            if not size:
-                continue
+            self.dispatch(queue_name, handlers)
 
+    @defer.inlineCallbacks
+    def dispatch(self, queue_name, handlers=None):
+        handlers = handlers or self.presence.get(queue_name)
+        if handlers:
+            size = len(handlers)
             try:
                 policy, content = yield self.oper.queue_get(queue_name)
                 assert (policy and content)
             except:
-                continue
+                defer.returnValue(None)
 
             if policy == core.POLICY_BROADCAST:
                 self._dump(handlers, content)
@@ -207,9 +234,7 @@ class CometDispatcher(object):
                 idx = self.qcounter[queue_name] % size
                 self._dump((handlers[idx],), content)
                 self.qcounter[queue_name] += 1
-
-        defer.returnValue(None)
-
+        
     def _dump(self, handlers, content):
         for handler in handlers:
             try:
@@ -225,6 +250,7 @@ class Application(cyclone.web.Application):
             (r"/",       IndexHandler),
             (r"/q/(.*)", RestQueueHandler),
             (r"/c/(.*)", CometQueueHandler),
+            (r"/p/(.*)", PolicyQueueHandler),
             (r"/xmlrpc", XmlrpcHandler),
             (r"/stats",  StatusHandler),
             (r"/queue",  QueueHandler)
