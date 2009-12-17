@@ -12,7 +12,7 @@ In another window, run a consumer:
     $ python reduce.py
 
 Now, run the producer:
-    $ for a in `ls files`; do python map files/$a; done
+    $ for a in `ls files`; do python map.py files/$a; done
 
 The producing phase is very quick, depending almost on python's parsing speed. The consuming phase still running at the top speed which the internal task loop runs, but it's being worked on.
 
