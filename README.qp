@@ -36,4 +36,4 @@ now, add some content into that queue:
 
 for x in {1..1000}; do curl -X POST -d "queue=test&value=foobar" http://localhost:8888/; done
 
-that's is. :)
+that's it. :)
