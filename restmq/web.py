@@ -215,7 +215,7 @@ class CometDispatcher(object):
             size = len(handlers)
             try:
                 policy, contents = yield self.oper.queue_tail(queue_name)
-                assert policy and isinstance(contents, types.ListType)
+                assert policy and contents and isinstance(contents, types.ListType)
             except:
                 defer.returnValue(None)
 
