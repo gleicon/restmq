@@ -1,11 +1,13 @@
 # coding: utf-8
 
+import types
 import txredisapi
 import cyclone.web
 import cyclone.escape
 from restmq import core
 from restmq import dispatch
 from collections import defaultdict
+from twisted.python import log
 from twisted.internet import task, defer
 
 
@@ -212,28 +214,27 @@ class CometDispatcher(object):
         if handlers:
             size = len(handlers)
             try:
-                # policy, content = yield self.oper.queue_get(queue_name)
-                policy, content = yield self.oper.queue_tail(queue_name)
-                assert (policy and content)
+                policy, contents = yield self.oper.queue_tail(queue_name)
+                assert policy and isinstance(contents, types.ListType)
             except:
                 defer.returnValue(None)
 
             if policy == core.POLICY_BROADCAST:
-                self._dump(handlers, content)
+                self._dump(handlers, contents)
 
             elif policy == core.POLICY_ROUNDROBIN:
                 idx = self.qcounter[queue_name] % size
-                self._dump((handlers[idx],), content)
+                self._dump((handlers[idx],), contents)
                 self.qcounter[queue_name] += 1
         
-    def _dump(self, handlers, content):
+    def _dump(self, handlers, contents):
         for handler in handlers:
-            try:
-                for c in content:
-                    handler.write("%s\n" % cyclone.escape.json_encode(c))
+            for content in contents:
+                try:
+                    handler.write("%s\n" % cyclone.escape.json_encode(content))
                     handler.flush()
-            except Exception, e:
-                log.write("cannot dump to comet client: %s" % str(e))
+                except Exception, e:
+                    log.write("cannot dump to comet client: %s" % str(e))
 
 
 class Application(cyclone.web.Application):
