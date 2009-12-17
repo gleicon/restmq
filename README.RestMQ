@@ -26,9 +26,12 @@ There are a few http routes:
  /c/queuename - entry point for a experimental COMET light consumer.
  /p/queuename - entry point for queue policy management - see README.qp for details
  /stats - misc statuses and queue list
+ /j/queuename - basic job checking, for those implementing job schedulers
 
 The CometQueueHandler is a permanent consumer for objects in a queue.
 It must only feed new objects to a permanent http connection. Deletion is not handled here for now.
 As each queue object has its own key, it can be done thru /queue interface. 
 It also can be changed for a hard consumer, just commenting out the softget inside the method.
+
+There is a Map/Reduce example under /examples which shows implements the cannonical wordcount example.
                                      
