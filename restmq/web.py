@@ -20,8 +20,7 @@ class IndexHandler(cyclone.web.RequestHandler):
         except Exception, e:
             raise cyclone.web.HTTPError(404, str(e))
         
-        self.write("get: %s\n" % repr(value))
-        self.finish()
+        self.finish("get: %s\n" % repr(value))
 
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
@@ -34,8 +33,7 @@ class IndexHandler(cyclone.web.RequestHandler):
             raise cyclone.web.HTTPError(400, str(e))
         
         self.settings.comet.queue.put(queue)
-        self.write("set: %s\n" % result)
-        self.finish()
+        self.finish("set: %s\n" % result)
 
 
 class RestQueueHandler(cyclone.web.RequestHandler):
@@ -54,8 +52,7 @@ class RestQueueHandler(cyclone.web.RequestHandler):
         except Exception, e:
             raise cyclone.web.HTTPError(404, str(e))
         
-        self.write("get: %s\n" % repr(value))
-        self.finish()
+        self.finish("get: %s\n" % repr(value))
     
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
@@ -67,8 +64,7 @@ class RestQueueHandler(cyclone.web.RequestHandler):
             raise cyclone.web.HTTPError(400, str(e))
 
         self.settings.comet.queue.put(queue)
-        self.write("set: %s\n" % result)
-        self.finish()
+        self.finish("set: %s\n" % result)
 
 
 class XmlrpcHandler(cyclone.web.XmlrpcRequestHandler):
@@ -112,12 +108,10 @@ class QueueHandler(cyclone.web.RequestHandler):
         
         d = dispatch.CommandDispatch(self.settings.oper)
         r = yield d.execute(cmd, jsonbody)
-        if r:
-            self.write(r) 
-        else:
-            self.write(cyclone.escape.json_encode({"Error":"Null resultset"}))
+        if not r:
+            r = cyclone.escape.json_encode({"Error":"Null resultset"})
 
-        self.finish()
+        self.finish(r)
 
 
 class CometQueueHandler(cyclone.web.RequestHandler):
@@ -150,7 +144,6 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         queue_name = queue.encode("utf-8")
         self.settings.comet.presence[queue_name].append(self)
         self.notifyFinish().addCallback(self._disconnected, queue_name)
-        self.flush()
 
 
 class PolicyQueueHandler(cyclone.web.RequestHandler):
@@ -162,8 +155,7 @@ class PolicyQueueHandler(cyclone.web.RequestHandler):
         except Exception, e:
             raise cyclone.web.HTTPError(404, str(e))
 
-        self.write(policy)
-        self.finish()
+        self.finish(policy)
 
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
@@ -174,8 +166,7 @@ class PolicyQueueHandler(cyclone.web.RequestHandler):
         except Exception, e:
             raise cyclone.web.HTTPError(400, str(e))
 
-        self.write(result)
-        self.finish()
+        self.finish(result)
 
 
 class StatusHandler(cyclone.web.RequestHandler):
@@ -189,8 +180,7 @@ class StatusHandler(cyclone.web.RequestHandler):
         stats={'redis': repr(self.settings.db), 
             'queues': list(allqueues['queues']),
             'count': len(allqueues['queues'])}
-        self.write("%s\n" % cyclone.escape.json_encode(stats))
-        self.finish()
+        self.finish("%s\n" % cyclone.escape.json_encode(stats))
 
 
 class CometDispatcher(object):
