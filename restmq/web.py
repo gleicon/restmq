@@ -1,7 +1,7 @@
 # coding: utf-8
 
-import os
 import types
+import os.path
 import txredisapi
 import cyclone.web
 import cyclone.escape
@@ -237,15 +237,15 @@ class CometDispatcher(object):
                 except Exception, e:
                     log.write("cannot dump to comet client: %s" % str(e))
 
+
 class JobQueueInfoHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def get(self, queue):
-        jobs= yield self.settings.oper.queue_last_items(queue)
+        jobs = yield self.settings.oper.queue_last_items(queue)
         job_count = yield self.settings.oper.queue_len(queue)
         queue_obj_count = yield self.settings.oper.queue_count_elements(queue)
-        self.render(self.settings.template_path+"/jobs.html", queue=queue, jobs=jobs,job_count=job_count, queue_size=queue_obj_count)
-        self.finish()
+        self.render("jobs.html", queue=queue, jobs=jobs, job_count=job_count, queue_size=queue_obj_count)
 
 
 class Application(cyclone.web.Application):
@@ -260,15 +260,17 @@ class Application(cyclone.web.Application):
             (r"/queue",  QueueHandler),
             (r"/j/(.*)", JobQueueInfoHandler)
         ]
+
         db = txredisapi.lazyRedisConnectionPool()
         oper = core.RedisOperations(db)
+        cwd = os.path.dirname(__file__)
     
         settings = {
             "db": db,
-            "comet": CometDispatcher(oper),
-            "static_path": "./static",
-            "template_path": os.path.join(os.path.dirname(__file__), "templates"),
             "oper": oper,
+            "comet": CometDispatcher(oper),
+            "static_path": os.path.join(cwd, "static"),
+            "template_path": os.path.join(cwd, "templates"),
         }
 
         cyclone.web.Application.__init__(self, handlers, **settings)
