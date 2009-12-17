@@ -223,12 +223,13 @@ class CometDispatcher(object):
             size = len(handlers)
             try:
                 policy, content = yield self.oper.queue_get(queue_name)
+                content = cyclone.escape.json_encode(content)
                 assert (policy and content)
             except:
                 defer.returnValue(None)
 
             if policy == core.POLICY_BROADCAST:
-                self._dump(handlers, cyclone.escape.json_encode(content))
+                self._dump(handlers, content)
 
             elif policy == core.POLICY_ROUNDROBIN:
                 idx = self.qcounter[queue_name] % size
