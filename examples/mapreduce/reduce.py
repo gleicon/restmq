@@ -16,14 +16,21 @@ class CometClient(object):
 
     def write(self, content):
         try:
-            data = simplejson.loads(content)
+			content.rstrip('\n')
+			c = content.split('\n')
+			data=[]
+			for line in c:
+				if len(line) < 2: continue
+				data.append(simplejson.loads(line))
         except Exception, e:
             log.err("cannot decode json: %s" % str(e))
             log.err("json is: %s" % content)
         else:
-            val=simplejson.loads(data['value'])
-            log.msg("file: %s count: %s" % (val['filename'], val['count']))
-            self.count=self.count+val['count']
+            for v in data:
+                    val=simplejson.loads(v['value'])
+                    log.msg("file: %s count: %s" % (val['filename'], val['count']))
+                    self.count=self.count+val['count']
+			
             log.msg("Total: %d" % self.count)
 
     def close(self):
