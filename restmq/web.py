@@ -128,9 +128,9 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         deletion is not handled here for now.
         As each queue object has its own key, it can be done thru /queue interface
     """
-    def _disconnected(self, why, queue_name):
+    def _disconnected(self, why, handler, queue_name):
         try:
-            self.settings.comet.presence[queue_name].remove(self)
+            self.settings.comet.presence[queue_name].remove(handler)
             if not len(self.settings.comet.presence[queue_name]):
                 self.settings.comet.presence.pop(queue_name)
         except:
@@ -149,9 +149,10 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         """
         self.set_header("Content-Type", "text/plain")
         callback = self.get_argument("callback", None)
+        handler = CustomHandler(self, callback)
         queue_name = queue.encode("utf-8")
-        self.settings.comet.presence[queue_name].append(CustomHandler(self, callback))
-        self.notifyFinish().addCallback(self._disconnected, queue_name)
+        self.settings.comet.presence[queue_name].append(handler)
+        self.notifyFinish().addCallback(self._disconnected, handler, queue_name)
 
 
 class PolicyQueueHandler(cyclone.web.RequestHandler):
