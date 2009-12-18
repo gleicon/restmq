@@ -85,7 +85,7 @@ class RestQueueHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def post(self, queue):
-        body = self.get_argument("value")
+        value = self.get_argument("value")
         callback = self.get_argument("callback", None)
         try:
             result = yield self.settings.oper.queue_add(queue, value)
@@ -219,7 +219,8 @@ class CometDispatcher(object):
         self.queue.get().addCallback(self._new_data)
 
     def _counters_cleanup(self):
-        for queue_name in self.qcounter:
+        keys = self.qcounter.keys()
+        for queue_name in keys:
             if not self.presence.has_key(queue_name):
                 self.qcounter.pop(queue_name)
 
