@@ -18,9 +18,9 @@ class CustomHandler(object):
         self.json_callback = json_callback
 
     def write(self, text):
+        if not isinstance(text, types.StringType):
+            text = cyclone.escape.json_encode(text)
         if self.json_callback:
-            if not isinstance(text, types.StringType):
-                text = cyclone.escape.json_encode(text)
             self.handler.write("%s(%s);\r\n" % (self.json_callback, text))
         else:
             self.handler.write(text+"\r\n")
