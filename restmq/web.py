@@ -12,31 +12,55 @@ from twisted.python import log
 from twisted.internet import task, defer
 
 
+class CustomHandler(object):
+    def __init__(self, handler, json_callback=None):
+        self.handler = handler
+        self.json_callback = json_callback
+
+    def write(self, text):
+        if self.json_callback:
+            if not isinstance(text, types.StringType):
+                text = cyclone.escape.json_encode(text)
+            self.handler.write("%s(%s);\r\n" % (self.json_callback, text))
+        else:
+            self.handler.write(text+"\r\n")
+
+    def flush(self):
+        self.handler.flush()
+
+    def finish(self, text=None):
+        if buffer:
+            self.write(text)
+        self.handler.finish()
+
+
 class IndexHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def get(self):
         queue = self.get_argument("queue")
+        callback = self.get_argument("callback", None)
         try:
             policy, value = yield self.settings.oper.queue_get(queue)
             assert value
         except Exception, e:
             raise cyclone.web.HTTPError(404, str(e))
-        
-        self.finish("get: %s\n" % repr(value))
+
+        CustomHandler(self, callback).finish(value)
 
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def post(self):
         queue = self.get_argument("queue")
         value = self.get_argument("value")
+        callback = self.get_argument("callback", None)
         try:
             result = yield self.settings.oper.queue_add(queue, value)
         except Exception, e:
             raise cyclone.web.HTTPError(400, str(e))
         
         self.settings.comet.queue.put(queue)
-        self.finish("set: %s\n" % result)
+        CustomHandler(self, callback).finish(result)
 
 
 class RestQueueHandler(cyclone.web.RequestHandler):
@@ -49,47 +73,27 @@ class RestQueueHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def get(self, queue):
+        callback = self.get_argument("callback", None)
         try:
             policy, value = yield self.settings.oper.queue_get(queue)
             assert value
         except Exception, e:
             raise cyclone.web.HTTPError(404, str(e))
         
-        self.finish("get: %s\n" % repr(value))
+        CustomHandler(self, callback).finish(value)
     
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def post(self, queue):
         body = self.get_argument("value")
+        callback = self.get_argument("callback", None)
         try:
             result = yield self.settings.oper.queue_add(queue, value)
         except Exception, e:
             raise cyclone.web.HTTPError(400, str(e))
 
         self.settings.comet.queue.put(queue)
-        self.finish("set: %s\n" % result)
-
-
-class XmlrpcHandler(cyclone.web.XmlrpcRequestHandler):
-    @defer.inlineCallbacks
-    @cyclone.web.asynchronous
-    def xmlrpc_get(self, queue):
-        try:
-            policy, value = yield self.settings.oper.queue_get(queue)
-            assert value
-        except Exception, e:
-            raise cyclone.web.HTTPError(404, str(e))
-        defer.returnValue(value)
-
-    @defer.inlineCallbacks
-    @cyclone.web.asynchronous
-    def xmlrpc_set(self, queue, value):
-        try:
-            result = yield self.settings.oper.queue_add(queue, value)
-        except Exception, e:
-            raise cyclone.web.HTTPError(400, e)
-        self.settings.comet.queue.put(queue)
-        defer.returnValue(result)
+        CustomHandler(self, callback).finish(result)
 
 
 class QueueHandler(cyclone.web.RequestHandler):
@@ -112,7 +116,7 @@ class QueueHandler(cyclone.web.RequestHandler):
         d = dispatch.CommandDispatch(self.settings.oper)
         r = yield d.execute(cmd, jsonbody)
         if not r:
-            r = cyclone.escape.json_encode({"Error":"Null resultset"})
+            r = cyclone.escape.json_encode({"error":"null resultset"})
 
         self.finish(r)
 
@@ -144,8 +148,9 @@ class CometQueueHandler(cyclone.web.RequestHandler):
             It can be changed by removing softget=True from oper_get request. This way, it will be truly a http consumer.
         """
         self.set_header("Content-Type", "text/plain")
+        callback = self.get_argument("callback", None)
         queue_name = queue.encode("utf-8")
-        self.settings.comet.presence[queue_name].append(self)
+        self.settings.comet.presence[queue_name].append(CustomHandler(self, callback))
         self.notifyFinish().addCallback(self._disconnected, queue_name)
 
 
@@ -153,23 +158,35 @@ class PolicyQueueHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def get(self, queue):
+        callback = self.get_argument("callback", None)
         try:
             policy = yield self.settings.oper.queue_policy_get(queue)
         except Exception, e:
             raise cyclone.web.HTTPError(404, str(e))
 
-        self.finish(policy)
+        CustomHandler(self, callback).finish(policy)
 
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def post(self, queue):
         policy = self.get_argument("policy")
+        callback = self.get_argument("callback", None)
         try:
             result = yield self.settings.oper.queue_policy_set(queue, policy)
         except Exception, e:
             raise cyclone.web.HTTPError(400, str(e))
 
-        self.finish(result)
+        CustomHandler(self, callback).finish(result)
+
+
+class JobQueueInfoHandler(cyclone.web.RequestHandler):
+    @defer.inlineCallbacks
+    @cyclone.web.asynchronous
+    def get(self, queue):
+        jobs = yield self.settings.oper.queue_last_items(queue)
+        job_count = yield self.settings.oper.queue_len(queue)
+        queue_obj_count = yield self.settings.oper.queue_count_elements(queue)
+        self.render("jobs.html", queue=queue, jobs=jobs, job_count=job_count, queue_size=queue_obj_count)
 
 
 class StatusHandler(cyclone.web.RequestHandler):
@@ -232,20 +249,10 @@ class CometDispatcher(object):
         for handler in handlers:
             for content in contents:
                 try:
-                    handler.write("%s\n" % cyclone.escape.json_encode(content))
+                    handler.write(cyclone.escape.json_encode(content))
                     handler.flush()
                 except Exception, e:
                     log.write("cannot dump to comet client: %s" % str(e))
-
-
-class JobQueueInfoHandler(cyclone.web.RequestHandler):
-    @defer.inlineCallbacks
-    @cyclone.web.asynchronous
-    def get(self, queue):
-        jobs = yield self.settings.oper.queue_last_items(queue)
-        job_count = yield self.settings.oper.queue_len(queue)
-        queue_obj_count = yield self.settings.oper.queue_count_elements(queue)
-        self.render("jobs.html", queue=queue, jobs=jobs, job_count=job_count, queue_size=queue_obj_count)
 
 
 class Application(cyclone.web.Application):
@@ -255,10 +262,9 @@ class Application(cyclone.web.Application):
             (r"/q/(.*)", RestQueueHandler),
             (r"/c/(.*)", CometQueueHandler),
             (r"/p/(.*)", PolicyQueueHandler),
-            (r"/xmlrpc", XmlrpcHandler),
+            (r"/j/(.*)", JobQueueInfoHandler),
             (r"/stats",  StatusHandler),
             (r"/queue",  QueueHandler),
-            (r"/j/(.*)", JobQueueInfoHandler)
         ]
 
         db = txredisapi.lazyRedisConnectionPool()
