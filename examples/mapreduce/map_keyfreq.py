@@ -10,20 +10,28 @@ import urllib, urllib2
 
 QUEUENAME = 'reducer'
 
-def wc(file):
+def wordfreq(file):
     try:
         f = open(file, 'r')
         words = f.read()
         f.close()
     except Exception, e:
         print "Exception: %s" % e
+        return None
+   
+    wf={}
+    wlist = words.split()
+    for b in wlist:
+        a=b.lower()
+        if wf.has_key(a):
+            wf[a]=wf[a]+1
+        else:
+           wf[a]=1
+    return len(wf), wf
 
-
-    return len(words.split())
-
-def enqueue(filename, count):
+def enqueue(filename, count, wf):
     try:
-        msg={'filename': filename, 'count':count}
+        msg={"filename": filename, "count":count, "wordfreqlist":wf}
         data = urllib.urlencode({'queue':QUEUENAME, 'value':simplejson.dumps(msg)})
         r = urllib2.Request('http://localhost:8888/', data)
         f = urllib2.urlopen(r)
@@ -38,5 +46,6 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print "Usage: map.py <file_to_count.txt>"
         sys.exit(-1)
-    count = wc(sys.argv[1])
-    print enqueue(sys.argv[1], count)
+    l, wfl = wordfreq(sys.argv[1])
+    print enqueue(sys.argv[1], l, wfl)
+    print "count: %d" % l     
