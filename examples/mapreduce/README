@@ -16,4 +16,5 @@ Now, run the producer:
 
 The producing phase is very quick, depending almost on python's parsing speed. The consuming phase still running at the top speed which the internal task loop runs, but it's being worked on.
 
+To test the word frequence example, just run reduce_keyfreq.py map_keyfreq.py instead of map.py/reduce.py.
 
