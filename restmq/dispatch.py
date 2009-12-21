@@ -29,7 +29,7 @@ class CommandDispatch:
         """
         r={}
         try:
-            e = yield self.ro.queue_get(jsonbody['queue'].encode("utf-8"), softget=True)
+            p, e = yield self.ro.queue_get(jsonbody['queue'].encode("utf-8"), softget=True)
             r['queue'] = jsonbody['queue']
             r['value'] = e['value']
             r['key'] = e['key']
@@ -48,7 +48,7 @@ class CommandDispatch:
         """
         r={}
         try:
-            e = yield self.ro.queue_getdel(jsonbody['queue'].encode("utf-8"))
+            p, e = yield self.ro.queue_getdel(jsonbody['queue'].encode("utf-8"))
             if e == False:
                 defer.returnValue({"error":"empty queue"})
           
