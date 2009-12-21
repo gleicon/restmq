@@ -175,7 +175,7 @@ class PolicyQueueHandler(cyclone.web.RequestHandler):
         try:
             result = yield self.settings.oper.queue_policy_set(queue, policy)
         except Exception, e:
-            raise cyclone.web.HTTPError(400, str(e))
+            raise cyclone.web.HTTPError(400, "Error posting %s" % str(e))
 
         CustomHandler(self, callback).finish(result)
 
@@ -184,10 +184,14 @@ class JobQueueInfoHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def get(self, queue):
-        jobs = yield self.settings.oper.queue_last_items(queue)
-        job_count = yield self.settings.oper.queue_len(queue)
-        queue_obj_count = yield self.settings.oper.queue_count_elements(queue)
-        self.render("jobs.html", queue=queue, jobs=jobs, job_count=job_count, queue_size=queue_obj_count)
+        try:
+            jobs = yield self.settings.oper.queue_last_items(queue)
+            job_count = yield self.settings.oper.queue_len(queue)
+            queue_obj_count = yield self.settings.oper.queue_count_elements(queue)
+            self.render("jobs.html", queue=queue, jobs=jobs, job_count=job_count, queue_size=queue_obj_count)
+        except Exception, e:
+            log.msg("cannot get data: %s" % str(e))
+            raise cyclone.web.HTTPError(400, str(e))
 
 
 class StatusHandler(cyclone.web.RequestHandler):
@@ -234,7 +238,7 @@ class CometDispatcher(object):
         if handlers:
             size = len(handlers)
             try:
-                policy, contents = yield self.oper.queue_tail(queue_name)
+                policy, contents = yield self.oper.queue_tail(queue_name, delete_obj=True) # change it to false to preserve objects
                 assert policy and contents and isinstance(contents, types.ListType)
             except:
                 defer.returnValue(None)
@@ -254,7 +258,7 @@ class CometDispatcher(object):
                     handler.write(cyclone.escape.json_encode(content))
                     handler.flush()
                 except Exception, e:
-                    log.write("cannot dump to comet client: %s" % str(e))
+                    log.msg("cannot dump to comet client: %s" % str(e))
 
 
 class Application(cyclone.web.Application):
@@ -272,7 +276,7 @@ class Application(cyclone.web.Application):
         db = txredisapi.lazyRedisConnectionPool()
         oper = core.RedisOperations(db)
         cwd = os.path.dirname(__file__)
-    
+
         settings = {
             "db": db,
             "oper": oper,

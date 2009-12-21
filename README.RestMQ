@@ -33,5 +33,6 @@ It must only feed new objects to a permanent http connection. Deletion is not ha
 As each queue object has its own key, it can be done thru /queue interface. 
 It also can be changed for a hard consumer, just commenting out the softget inside the method.
 
-There is a Map/Reduce example under /examples which shows implements the cannonical wordcount example.
-                                     
+There is a Map/Reduce example under /examples which shows implements the cannonical wordcount and wordfreq examples.
+
+

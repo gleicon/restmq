@@ -170,7 +170,7 @@ class RedisOperations:
         defer.returnValue({'queue':queue, 'value': self.inverted_policies.get(val, "unknown")})
 
     @defer.inlineCallbacks
-    def queue_tail(self, queue, keyno=10): 
+    def queue_tail(self, queue, keyno=10, delete_obj=False): 
         """
             TAIL follows on GET, but returns keyno keys instead of only one key.
             keyno could be a LLEN function over the queue list, but it lends almost the same effect.
@@ -181,31 +181,43 @@ class RedisOperations:
         policy = None
         queue = self.normalize(queue)
         lkey = '%s:queue' % queue
-        keys=[]
         multivalue = []
         for a in range (keyno):
-            t = yield self.redis.pop(lkey)
-            if t != None: 
-                k = t.encode('utf-8')
-                keys.append(k)
-                v = yield self.redis.get(k) # queue_getdel would keep the db clean
-                multivalue.append({'key': k, 'value':v.encode('utf-8')})
-        
-        if len(keys) == 0:
-            defer.returnValue((None, None))
-            return
+            nk = yield self.redis.pop(lkey)
+            if nk != None: 
+                t = nk.encode('utf-8')
+            else:
+                continue
 
+            if delete_obj == True:
+                okey = self.normalize(t)
+                t = '%s:lock' % okey
+                ren = yield self.redis.rename(okey, t)
+                if ren == None: continue
+
+                v = yield self.redis.get(t)
+                delk = yield self.redis.delete(t)
+                if delk == 0: continue
+            else:
+                v = yield self.redis.get(t) 
+
+            multivalue.append({'key': t, 'value':v.encode('utf-8')})
+        
         qpkey = "%s:queuepolicy" % queue
         policy = yield self.redis.get(qpkey)
         defer.returnValue((policy or POLICY_BROADCAST, multivalue))
 
     @defer.inlineCallbacks
     def queue_count_elements(self, queue):
-        # it hurts, uses too much space :(
-        # but it's necessary to evaluate how many objects still undeleted on redis.
-        lkey = '%s*' % self.normalize(queue)
-        ll = yield self.redis.keys(lkey)
-        defer.returnValue({"objects":len(ll)})
+        # this is necessary to evaluate how many objects still undeleted on redis.
+        # seems like it triggers a condition which the client disconnects from redis
+        try:
+            lkey = '%s*' % self.normalize(queue)
+            ll = yield self.redis.keys(lkey)
+            defer.returnValue({"objects":len(ll)})
+        except Exception, e:
+            defer.returnValue({"error":str(e)})
+
 
     @defer.inlineCallbacks
     def queue_last_items(self, queue, count=10): 
