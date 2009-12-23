@@ -1,6 +1,8 @@
 RestMQ is a queue broker which presents different ways to access its data.
 It is based on Redis, python, twisted and the cyclone webserver/framework.
 Most of its features were drawn around Redis, which can deal with different types of data.
+
+
 There goes an sketch of the basic queue algorithm:
 
 The most important method is queue_add:
@@ -35,4 +37,5 @@ It also can be changed for a hard consumer, just commenting out the softget insi
 
 There is a Map/Reduce example under /examples which shows implements the cannonical wordcount and wordfreq examples.
 
+The policy management allows for broadcast or roundrobin data distribution between comet subscribers (the consumers using comet route only). see REAME.qp
 

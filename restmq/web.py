@@ -139,13 +139,11 @@ class CometQueueHandler(cyclone.web.RequestHandler):
     @cyclone.web.asynchronous
     def get(self, queue):
         """
-            this method is meant only as a light http consumer, with no delete
+            this method is meant to build light http consumers emulating a subscription
             simple test: point the browser to /c/test
             execute python engine.py -p, check the browser to see if the object appears, 
             then execute engine.py -c again, to make another object appear in the browser.
-            The main reasoning is that this method should not remove objects from the queue, neither 
-            show objects with reference counter > 1.
-            It can be changed by removing softget=True from oper_get request. This way, it will be truly a http consumer.
+            Not it deletes objects from redis. To change it, set getdel to False on CometDispatcher 
         """
         self.set_header("Content-Type", "text/plain")
         callback = self.get_argument("callback", None)
