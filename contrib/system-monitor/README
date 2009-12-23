@@ -1,0 +1,16 @@
+Monitoring job producer/consumer using restmq
+Author: Eduardo S. Scarpellini, <scarpellini@gmail.com>
+Date: 23/12/2009
+
+Depends on statgrab and python-statgrab to collect system information. 
+The dummyfunc packages can be easily converted to feed Cacti and check agains stored thresholds to generate alarms.
+
+Open restmq-client.py, configure RESTMQ_HOST and _PORT, and run (no need to be root):
+
+$ python restmq-client.py 
+
+In another terminal/machine, configure and run the consumer:
+
+$ python qconsumer.py
+
+
