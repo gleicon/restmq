@@ -271,7 +271,7 @@ class Application(cyclone.web.Application):
             (r"/queue",  QueueHandler),
         ]
 
-        db = txredisapi.lazyRedisConnectionPool()
+        db = txredisapi.lazyRedisConnectionPool(pool_size=10)
         oper = core.RedisOperations(db)
         cwd = os.path.dirname(__file__)
 
