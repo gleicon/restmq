@@ -1,0 +1,8 @@
+To execute tests using ab, use the bundled post.txt file, along with these command lines:
+
+Producer:
+ab -r -p post.txt -n 20000 -c 50 -T application/x-www-form-urlencoded http://127.0.0.1:8888/
+
+Consumer:
+ab -n 1000 -c 20 http://127.0.0.1:8888/q/reducer
+

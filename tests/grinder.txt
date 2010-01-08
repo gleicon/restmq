@@ -1,0 +1,6 @@
+Testing with grinder and generating reports with Grinder Analyzer got easy thanks to Eduardo Scarpellini.
+There is a patch to GrinderAnalyzer's analyzer.py if you use cutting edge jython stuff.
+The basic files are:
+
+restmq-test.py
+grinder.properties

@@ -1,0 +1,12 @@
+801c801
+<     if grinderVersion >= 3.2:
+---
+>     if grinderVersion == 3.2:
+803c803
+<     logger.fatal("Unsupported grinder version: " + str(grinderVersion))
+---
+>     logger.fatal("Unsupported grinder version: " + grinderVersion)
+895c895
+< SUPPORTED_JYTHON_VERSIONS=["2.2.1", "2.5.0", "2.5.1"]
+---
+> SUPPORTED_JYTHON_VERSIONS=["2.2.1", "2.5.0"]
