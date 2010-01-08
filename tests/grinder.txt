@@ -4,3 +4,8 @@ The basic files are:
 
 restmq-test.py
 grinder.properties
+
+To run grinder: java -Xms1024m -Xmx1024m -cp lib/grinder.jar net.grinder.Grinder grinder.properties
+To run the reports: $ /opt/jython2.5.1/bin/jython run.py ../grinder-3.3/log/data_parvati-0.log ../grinder-3.3/log/out_parvati-0.log
+
+
