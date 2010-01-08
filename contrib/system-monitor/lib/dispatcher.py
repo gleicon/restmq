@@ -2,19 +2,17 @@
 # coding: utf-8
 # author: Eduardo S. Scarpellini, <scarpellini@gmail.com>
 
+import myconfig
 import myloader
 
-funcs = {
-	"cpu": "dummyfuncs.generic",
-	"mem": "dummyfuncs.generic",
-	"load": "dummyfuncs.generic",
-	"swap": "dummyfuncs.generic"
-}
 
 def exe(name, params):
-	if funcs.has_key(name):
+	cfg = myconfig.read()
+	cfgvalues = cfg.dispatcher()
+
+	if cfgvalues.has_key(name):
 		try:
-			func = myloader.myimport(funcs[name])
+			func = myloader.myimport(cfgvalues[name])
 			func(params)
 		except Exception, err:
 			print "Error: %s" % err

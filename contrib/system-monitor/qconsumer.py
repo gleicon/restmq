@@ -2,36 +2,51 @@
 # coding: utf-8
 # author: Eduardo S. Scarpellini, <scarpellini@gmail.com>
 
+# You can uncomment bellow lines if you dont want to set PYTHONPATH
+import sys, os
+scriptdir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append("%s/lib" % scriptdir)
+
 import sys
 import simplejson
+import myconfig
 import dispatcher
 from twisted.web import client
 from twisted.python import log
 from twisted.internet import reactor
 
-RESTMQ_HOST = "localhost"
-RESTMQ_PORT = 8888
-QUEUENAME   = "monitor"
 
 class CometClient(object):
 	def write(self, content):
 		try:
-                        packet = simplejson.loads(content)
-			data = simplejson.loads(packet["value"])
-			jobid = packet['key'] 
+			data = []
+			content.rstrip()
+
+			for line in content.split("\r\n"):
+				if line:
+					packet = simplejson.loads(line)
+					data.append( {"key": packet["key"], "value": simplejson.loads(packet["value"])} )
+
 		except Exception, err:
 			log.err("Cannot decode JSON: %s" % str(err))
 			log.err("MQ Return: %s" % content)
 		else:
-                        log.msg("processing job: %s " % jobid)
-			for key in data.keys():
-				log.msg("Dispatching key \"%s\"" % key)
-				dispatcher.exe(key, data[key])
+			for job in data:
+				log.msg("*** Processing job \"%s\" ***" % job["key"])
+
+				for task in job["value"].keys():
+					log.msg("=> Dispatching task \"%s\"" % task)
+					dispatcher.exe(task, job["value"][task])
 
 	def close(self):
 		pass
 
+
 if __name__ == "__main__":
+	cfg = myconfig.read()
+	cfgvalues = cfg.restmq()
+
 	log.startLogging(sys.stdout)
-	client.downloadPage("http://%s:%s/c/%s" % (RESTMQ_HOST, str(RESTMQ_PORT), QUEUENAME), CometClient())
+
+	client.downloadPage("http://%s:%s/c/%s" % (cfgvalues["host"], str(cfgvalues["port"]), cfgvalues["queuename"]), CometClient())
 	reactor.run()
