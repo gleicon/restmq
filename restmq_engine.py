@@ -103,7 +103,15 @@ def test_operations(opt, args):
         else:
             print 'empty queue'
 
-
+    if opt.authorize == True:
+    	print "Running authorization"
+        ret = yield ro.authorize(QUEUENAME, 'aaa123')
+        print ret
+    
+    if opt.create_auth == True:
+    	print "Creating auth record"
+        ret = yield ro._create_auth_record('aaa123', [QUEUENAME], ['create'])
+        print ret
 
 
 def main():
@@ -118,6 +126,9 @@ def main():
     p.add_option("-t", "--tail_multiget", action="store_true", dest="tail_mget", help="Multi get 10 keys")
     p.add_option("-u", "--count_objects", action="store_true", dest="count_objects", help="Count objects of a given queue")
     p.add_option("-i", "--list_last_items", action="store_true", dest="queue_last_items", help="List the latest queue items")
+    # authorization tests
+    p.add_option("-a", "--authorize", action="store_true", dest="authorize", help="authorize a key for queues/privileges")
+    p.add_option("-r", "--create_auth", action="store_true", dest="create_auth", help="Create an authorization record")
 
 
     (opt, args)=p.parse_args(sys.argv[1:])

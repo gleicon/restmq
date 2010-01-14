@@ -45,7 +45,44 @@ class RedisOperations:
                 raise ValueError("strings must be utf-8")
         else:
             raise ValueError("data must be utf-8")
-        
+
+    @defer.inlineCallbacks
+    def authorize(self, queue, authkey):
+        """ Authorize an operation for a given queue using an authentication key
+            The basic mechanism is a check against Redis to see if key named AUTHKEY:<authkey value> exists
+            If it exists, check against its content to see wheter the queue is authorized. 
+            Authorization is either read/write a queue and create new queues
+            queues and priv are lists in the authorization record
+            returns boolean 
+        """
+        queue, authkey = self.normalize(queue), self.normalize(authkey)
+        # get key and analyze {'queues': ['q1','q2','q3'], 'privs': ['create']}
+        avkey = "AUTHKEY:%s" % authkey
+        authval = yield self.redis.get(avkey.encode('utf-8'))
+        if authval == None:
+            defer.returnValue(False)
+        try:
+            adata = simplejson.loads(authval)
+        except Exception, e:
+            defer.returnValue(None)
+        if queue in adata['queues']:
+            defer.returnValue(True)
+        elif 'create' in adata['privs']:
+            defer.returnValue(True)
+
+        defer.returnValue(False)
+
+    @defer.inlineCallbacks
+    def _create_auth_record(self, authkey, queues=[], privs=[]):
+        """ create a authorization record. queues and privs are lists """
+        authkey = self.normalize(authkey)
+        avkey = "AUTHKEY:%s" % authkey
+        avkey = self.normalize(avkey)
+        authrecord = {'queues': queues, 'privs':privs}
+
+        res = yield self.redis.set(avkey, simplejson.dumps(authrecord))
+        defer.returnValue(res)
+
     @defer.inlineCallbacks
     def queue_add(self, queue, value):
         queue, value = self.normalize(queue), self.normalize(value)
