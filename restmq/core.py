@@ -6,6 +6,8 @@ from twisted.internet import defer
 
 POLICY_BROADCAST = 1
 POLICY_ROUNDROBIN = 2
+QUEUE_STATUS = 'queuestat:'
+
 
 class RedisOperations:
     """
@@ -27,6 +29,8 @@ class RedisOperations:
     """
 
     def __init__(self, redis):
+        self.STOPQUEUE = 0
+        self.STARTQUEUE = 1 
         self.redis = redis
         self.policies = {
             "broadcast": POLICY_BROADCAST,
@@ -266,5 +270,31 @@ class RedisOperations:
         multivalue = yield self.redis.lrange(lkey, 0, count-1)
 
         defer.returnValue( multivalue)
+    
+    @defer.inlineCallbacks
+    def queue_changestatus(self, queue, status):
+        """Statuses: core.STOPQUEUE/core.STARTQUEUE"""
+        if status != self.STOPQUEUE and status != self.STARTQUEUE:
+            defer.returnValue(None)
+
+        key = '%s:%s' % (QUEUE_STATUS, queue)
+        res = yield self.redis.set(key, status)
+        defer.returnValue({'queue':queue, 'status':status})
 
 
+    @defer.inlineCallbacks
+    def queue_status(self, queue):
+        key = '%s:%s' % (QUEUE_STATUS, queue)
+        res = yield self.redis.get(key)
+        defer.returnValue({'queue':queue, 'status':res})
+
+    @defer.inlineCallbacks
+    def queue_purgue(self, queue):
+        #TODO Must del all keys (or set expire)
+        #it could rename the queue list, add to a deletion SET and use a task to clean it
+
+        lkey = '%s:queue' % queue
+        res = yield self.redis.delete(lkey)
+        defer.returnValue({'queue':queue, 'status':res})
+
+ 
