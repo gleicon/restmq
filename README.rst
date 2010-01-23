@@ -34,8 +34,42 @@ Your browser is acting as a consumer to the queue. Using json encoded data it's 
 Aside from the COMET consumer, there are xmlrpc methods, rest routes and the JSON protocol to manipulate queue items.
 
 
+COMET consumer
+==============
+
+There is a COMET based consumer, which will bind even if the queue doesn't already exists. 
+
+The main route is thru /c/<queuename>, It can be tested using curl:
+
+$ curl http://localhost:8888/c/test
+
+In another terminal, run $ curl -X POST -d "queue=test&value=foobar" http://localhost:8888/ 
+
+This is the basic usage pattern for map/reduce (see examples).
+
+See below on how to purge and disconnect all consumers from a queue, using DELETE.
+
+
+
+REST services
+=============
+
+A queue can be accessed as /q/<queuename>.
+
+GET requests will dequeue an object.
+
+POST requests inserts an object in the queue
+
+DELETE requests will purgue the queue.
+
+The usual pattern is listen in the COMET consumer (/c/<queuename>) and insert new stuff at the REST route (POST /q/<queuename).
+
+
 JSON Protocol
 =============
+
+The HTTP route /queue/<queuename> uses the JSON protocol. Its the same protocol I've implemented for http://jsonqueue.appspot.com.
+
 ::
 
     {
