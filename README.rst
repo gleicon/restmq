@@ -107,8 +107,8 @@ Dependencies
 - python, twisted
 - `redis client <http://github.com/fiorix/txredisapi>`_: 
   git clone git://github.com/fiorix/txredisapi.git
-- `cyclone <http://github.com/fiorix/tornado>`_: 
-  git clone git://github.com/fiorix/tornado.git 
+- `cyclone <http://github.com/fiorix/cyclone>`_: 
+  git clone git://github.com/fiorix/cyclone.git 
 
 
 Running
