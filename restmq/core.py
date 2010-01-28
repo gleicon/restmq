@@ -108,6 +108,9 @@ class RedisOperations:
             #qpkey = "%s:queuepolicy" % (queue)
             #defaultqp = {'enforce_take':False, 'broadcast':True}
             #res = yield self.redis.set(qpkey, simplejson.dumps(defaultqp).encode('utf-8'))
+            # queue is auto started for comet
+            ckey = '%s:%s' % (QUEUE_STATUS, queue)
+            res = yield self.redis.set(ckey, self.STARTQUEUE)
 
 
         res = yield self.redis.push(lkey, key)
