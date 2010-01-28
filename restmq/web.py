@@ -51,7 +51,7 @@ class IndexHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def post(self):
-        queue = self.get_argument("queue")
+        queue = self.get_argument("queue").encode('utf-8')
         value = self.get_argument("value")
         callback = self.get_argument("callback", None)
         try:
