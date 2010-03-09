@@ -1,0 +1,76 @@
+<html>
+<head>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+    // from joe amstrong's websocket example
+    // http://armstrongonsoftware.blogspot.com/
+    // his ! syntax idea should be the standard for reaching tag content
+var ws;
+
+if ("WebSocket" in window) {
+    debug("Horray you have web sockets Trying to connect...");
+    ws = new WebSocket("ws://localhost:8888/ws/test");
+
+    ws.onopen = function() {
+        // Web Socket is connected. You can send data by send() method.
+        debug("connected...");
+        //ws.send("hello from the browser");
+        //ws.send("more from browser");
+    };
+
+    run = function() {
+        var val=$("#i1").val(); // read the entry
+        $("#i1").val("");       // and clear it
+        ws.send(val);           // tell erlang
+        return true;            // must do this
+    };
+
+    ws.onmessage = function (evt) {
+        var data = evt.data;
+        $("#out").html(data);
+    };
+
+    ws.onclose = function() {
+        debug(" socket closed");
+    };
+} else {
+    alert("You have no web sockets");
+};
+
+    function debug(str){
+        $("#debug").append("<p>" +  str);
+    };
+});
+</script>
+</head>
+<body>
+
+
+<h1>Interaction experiment</h1>
+
+<h2>Debug</h2>
+<div id="debug"></div>
+
+<fieldset>
+<legend>Last message time: </legend>
+<div id="clock"></div>
+</fieldset>
+
+<fieldset>
+<legend>queue: test - last element</legend>
+<div id="out">Output should appear here</div>
+</fieldset>
+
+<p>Enter something in the entry below,
+the server will send it back to the out region above
+</p>
+
+<fieldset>
+    <legend>entry</legend><!--                   42  -->
+<P>Enter: <input id="i1" onchange="run()" size ="42"></p>
+</fieldset>
+
+</body>
+</html>
+

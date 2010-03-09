@@ -1,0 +1,17 @@
+Now that cyclone has websockets support, there is a read-only websocket interface for RestMQ.
+Initially it will echoes back any message send to it, and will provide the latest messages to it too.
+
+The url format is http://restmqserver:port/ws/<queuename>
+
+Example: http://localhost:8888/ws/test
+
+To test it, copy contrib/interact.html to your webserver, configure it if necessary (just change websocket url or queue name if you need).
+Open it in your browser and execute in console:
+
+python restmq_engine.py -p oi
+
+or
+
+curl -X POST -d "queue=test&value=foobar" http://localhost:8888/q/test
+
+
