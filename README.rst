@@ -49,6 +49,12 @@ This is the basic usage pattern for map/reduce (see examples).
 
 See below on how to purge and disconnect all consumers from a queue, using DELETE.
 
+WebSocket consumer
+==================
+
+Now that cyclone has websockets support, check README.websocket to test it. 
+
+If you are using a browser or library which already supports websockets, you may take advantage of this interface
 
 
 REST services
