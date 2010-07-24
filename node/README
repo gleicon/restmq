@@ -1,0 +1,5 @@
+Node.js proxy for restmq
+Useful for deploying restmq's websocket endpoint, as of now nginx and other webservers do not offer proxies for it.
+http://gist.github.com/488873
+older node.js versions: http://gist.github.com/488845
+
