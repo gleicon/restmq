@@ -1,0 +1,12 @@
+<html>
+   <head>
+     <title>avaliable queue for {{extended_route}}</title>
+   </head>
+   <body>
+     <ul>
+       {% for q in allqueues %}
+       <li><a href="/{{route}}/{{escape(q)}}">/{{route}}/{{escape(q)}}</a></li>
+       {% end %}
+     </ul>
+   </body>
+ </html>
