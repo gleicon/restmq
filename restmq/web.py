@@ -42,8 +42,11 @@ class IndexHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def get(self):
-        queue = self.get_argument("queue")
+        queue = self.get_argument("queue", None)
         callback = self.get_argument("callback", None)
+        if queue == None:
+            self.render('basic_routes.html')
+            return
         try:
             policy, value = yield self.settings.oper.queue_get(queue)
             assert value
@@ -78,6 +81,11 @@ class RestQueueHandler(cyclone.web.RequestHandler):
     @cyclone.web.asynchronous
     def get(self, queue):
         callback = self.get_argument("callback", None)
+
+        if queue == None or queue=="":
+            allqueues = yield self.settings.oper.queue_all()
+            self.render("list_queues.html", route="q", extended_route="REST", allqueues=allqueues['queues'])
+            return
         try:
             policy, value = yield self.settings.oper.queue_get(queue)
             assert value
@@ -109,7 +117,6 @@ class RestQueueHandler(cyclone.web.RequestHandler):
                 c.finish()
             except:
                 pass
-        #map(lambda client: client.finish(), self.settings.comet.presence.get(queue, []))
         try:
             ret = yield self.settings.oper.queue_purgue(queue)
         except:
@@ -166,6 +173,7 @@ class CometQueueHandler(cyclone.web.RequestHandler):
             then execute engine.py -c again, to make another object appear in the browser.
             Not it deletes objects from redis. To change it, set getdel to False on CometDispatcher 
         """
+
         self.set_header("Content-Type", "text/plain")
         callback = self.get_argument("callback", None)
         handler = CustomHandler(self, callback)
@@ -339,9 +347,8 @@ class WebSocketQueueHandler(cyclone.web.WebSocketHandler):
         except:
             pass
     
-    #def connectionMade(self, *args, **kwargs):
     def connectionMade(self, queue):
-        print "connection made: %s" % queue
+        log.msg("connection made: %s" % queue)
         self.queue = queue
         handler = CustomHandler(self, None)
         queue_name = queue.encode("utf-8")
@@ -349,24 +356,14 @@ class WebSocketQueueHandler(cyclone.web.WebSocketHandler):
         self.notifyFinish().addCallback(self._disconnected, handler, queue_name)
 
     def connectionLost(self, why):
-        print "connection lost:", why
+        log.msg("connection lost:", why)
 
-    #@defer.inlineCallbacks
     def messageReceived(self, message):
         """
             same idea as COMET consumer, but using websockets. how cool is that ?
         """
         print "msg recv: %s" % message
         self.sendMessage(message)
-
-        #try:
-        #    result = yield self.settings.oper.queue_add(self.queue, message)
-        #except Exception, e:
-        #    raise cyclone.web.HTTPError(400, str(e))
-
-        #c = yield self.settings.comet.queue.put(self.queue)
-        #CustomHandler(self, None).finish(result)
-        #pass # we wont be receiving messages for now ;* 
 
 class Application(cyclone.web.Application):
     def __init__(self):
