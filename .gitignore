@@ -1,3 +1,4 @@
 *.pyc
 *.swp
 *~
+node/redis-node-client/*

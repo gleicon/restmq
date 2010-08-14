@@ -132,7 +132,7 @@ class RedisOperations:
         if softget == False:
             okey = yield self.redis.pop(lkey)
         else:
-            okey = yield self.redis.lindex(lkey, "0")
+            okey = yield self.redis.lindex(lkey, "-1")
 
         if okey == None:
             defer.returnValue((None, None))

@@ -5,6 +5,7 @@
 require 'rubygems'
 require 'sinatra'
 require 'redis'
+require 'json'
 
 QUEUESET = 'QUEUESET'   # queue index
 UUID_SUFFIX = ':UUID'   # queue unique id
@@ -12,14 +13,28 @@ QUEUE_SUFFIX = ':queue' # suffix to identify each queue's LIST
 
 reds = Redis.new
 
+get '/q' do
+  b = reds.smembers QUEUESET
+  throw :halt, [404, 'Not found (empty queueset)'] if b == nil
+  b.map! do |q| q = '/q/'+q end
+  b.to_json  
+end
+
 get '/q/*' do
   queue = params['splat'].to_s
-  throw :halt, [404, 'Not found\n'] if queue == nil
+  soft = params['soft'] # soft = true doesn't rpop values
+  throw :halt, [404, 'Not found'] if queue == nil
   queue = queue + QUEUE_SUFFIX
-  b = reds.rpop queue
-  throw :halt, [404, 'Not found (empty queue)\n'] if b == nil
+  if soft != nil
+    puts queue
+    b = reds.lindex queue, -1
+  else
+    b = reds.rpop queue 
+  end
+  throw :halt, [404, 'Not found (empty queue)'] if b == nil
   v = reds.get b
-  "{'value':" + v + "'key':" + b + "}" 
+  throw :halt, [200, "{'value':" + v + "'key':" + b + "}"] unless v == nil 
+  'empty value'
 end
 
 post '/q/*' do
