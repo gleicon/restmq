@@ -242,14 +242,15 @@ class StatusHandler(cyclone.web.RequestHandler):
 
 
 class CometDispatcher(object):
-    def __init__(self, oper):
+    def __init__(self, oper, del_obj = True):
         self.oper = oper
         self.queue = defer.DeferredQueue()
         self.presence = defaultdict(lambda: [])
         self.qcounter = defaultdict(lambda: 0)
         self.queue.get().addCallback(self._new_data)
         task.LoopingCall(self._auto_dispatch).start(1) # secs between checkings
-        task.LoopingCall(self._counters_cleanup).start(30)
+        task.LoopingCall(self._counters_cleanup).start(30) # presence maintenance
+        self.delete_objects = del_obj
 
     def _new_data(self, queue_name):
         self.dispatch(queue_name)
@@ -274,7 +275,7 @@ class CometDispatcher(object):
         if handlers:
             size = len(handlers)
             try:
-                policy, contents = yield self.oper.queue_tail(queue_name, delete_obj=True) # change it to false to preserve objects
+                policy, contents = yield self.oper.queue_tail(queue_name, delete_obj = self.delete_objects)
                 assert policy and contents and isinstance(contents, types.ListType)
             except:
                 defer.returnValue(None)
@@ -286,7 +287,7 @@ class CometDispatcher(object):
                 idx = self.qcounter[queue_name] % size
                 self._dump((handlers[idx],), contents)
                 self.qcounter[queue_name] += 1
-        
+                    
     def _dump(self, handlers, contents):
         for handler in handlers:
             for content in contents:

@@ -38,6 +38,7 @@ class RedisOperations:
         }
         self.inverted_policies = dict([[v, k] for k, v in self.policies.items()])
         self.QUEUESET = 'QUEUESET' # the set which holds all queues
+        self.PUBSUB_SUFIX = 'PUBSUB'
 
     def normalize(self, item):
         if isinstance(item, types.StringType):
@@ -300,4 +301,7 @@ class RedisOperations:
         res = yield self.redis.delete(lkey)
         defer.returnValue({'queue':queue, 'status':res})
 
- 
+    @defer.inlineCallbacks
+    def pubsub(self, queue_name, content):
+        key = "%s:%s" % (queue_name, self.PUBSUB_SUFIX)
+        r = yield self.redis.publish(key, content)
