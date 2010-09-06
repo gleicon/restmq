@@ -46,7 +46,7 @@ A http client (curl) post to /queue:
 
 Point your browser to http://localhost:8888/c/test
 
-Run $ curl -X POST -d "queue=test&value=foobar" http://localhost:8888/ 
+Run $ curl -d "queue=test&value=foobar" http://localhost:8888/ 
 
 Your browser is acting as a consumer to the queue. Using json encoded data it's easy to fit the data into a js based app.
 
@@ -174,14 +174,15 @@ Files
 
 If you're a developer looking for extending RestMQ's functionality, have a look at these files:
 
-- restmq/web.py: the web service code
-- restmq/core.py: redis/queue operations logic
-- restmq/dispatch.py: a simple command dispatcher
-- restmq_engine.py: the redis abstraction layer to the queue algorithm (command line tool)
+- `restmq/web.py <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq/web.py>`_: the web service code
+- `restmq/core.py <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq/core.py>`_: redis/queue operations logic
+- `restmq/dispatch.py <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq/dispatch.py>`_: a simple command dispatcher
+- `restmq_engine.py <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq_engine.py>`_: the redis abstraction layer to the queue algorithm (command line tool)
 
 
 Credits
 =======
 Thanks to (in no particular order):
+
 - Salvatore Sanfilippo for redis and for NoSQL patterns discussion.
 - Alexandre Fiori for the redis client enhancement and patches.
