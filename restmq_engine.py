@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import txredisapi
 import simplejson
+import cyclone.redis
 from restmq import core
 from optparse import OptionParser
 from twisted.internet import defer, reactor
@@ -17,7 +17,7 @@ def test_operations(opt, args):
         based on tx-redis
     """
     try:
-        rd = yield txredisapi.RedisConnectionPool()
+        rd = yield cyclone.redis.RedisConnectionPool()
     except Exception, e:
         print "Error creating redis pool %s" % e
         defer.returnValue(None)
