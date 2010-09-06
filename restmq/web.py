@@ -2,14 +2,15 @@
 
 import types
 import os.path
-import txredisapi
 import cyclone.web
+import cyclone.redis
 import cyclone.escape
-from restmq import core
-from restmq import dispatch
 from collections import defaultdict
 from twisted.python import log
 from twisted.internet import task, defer
+
+from restmq import core
+from restmq import dispatch
 
 
 class CustomHandler(object):
@@ -40,34 +41,43 @@ class CustomHandler(object):
 
 class IndexHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def get(self):
         queue = self.get_argument("queue", None)
         callback = self.get_argument("callback", None)
-        if queue == None:
-            self.render('basic_routes.html')
-            return
+
+        if queue is None:
+            self.render("basic_routes.html")
+            defer.returnValue(None)
+
         try:
             policy, value = yield self.settings.oper.queue_get(queue)
-            assert value
         except Exception, e:
-            raise cyclone.web.HTTPError(404, str(e))
+            log.msg("ERROR: oper.queue_get('%s') failed: %s" % (queue, e))
+            cyclone.web.HTTPError(503)
 
-        CustomHandler(self, callback).finish(value)
+        if value:
+            CustomHandler(self, callback).finish(value)
+        else:
+            raise cyclone.web.HTTPError(404)
+
 
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def post(self):
-        queue = self.get_argument("queue").encode('utf-8')
+        queue = self.get_argument("queue")
         value = self.get_argument("value")
         callback = self.get_argument("callback", None)
+
         try:
             result = yield self.settings.oper.queue_add(queue, value)
         except Exception, e:
-            raise cyclone.web.HTTPError(400, str(e))
-        
-        self.settings.comet.queue.put(queue)
-        CustomHandler(self, callback).finish(result)
+            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, value))
+            raise cyclone.web.HTTPError(503)
+
+        if result:
+            self.settings.comet.queue.put(queue)
+            CustomHandler(self, callback).finish(result)
+        else:
+            raise cyclone.web.HTTPError(400)
 
 
 class RestQueueHandler(cyclone.web.RequestHandler):
@@ -75,53 +85,64 @@ class RestQueueHandler(cyclone.web.RequestHandler):
         RestQueueHandler applies HTTP Methods to a given queue.
         GET /q/queuename gets an object out of the queue.
         POST /q/queuename inserts an object in the queue (I know, it could be PUT). The payload comes in the parameter body
-        DELETE method purgue and delete the queue. it might disconnect all consumers (comet)
+        DELETE method purge and delete the queue. It will close all comet connections.
     """
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def get(self, queue):
         callback = self.get_argument("callback", None)
 
-        if queue == None or queue=="":
-            allqueues = yield self.settings.oper.queue_all()
-            self.render("list_queues.html", route="q", extended_route="REST", allqueues=allqueues['queues'])
-            return
-        try:
-            policy, value = yield self.settings.oper.queue_get(queue)
-            assert value
-        except Exception, e:
-            raise cyclone.web.HTTPError(404, str(e))
-        
-        CustomHandler(self, callback).finish(value)
-    
+        if queue:
+            try:
+                policy, value = yield self.settings.oper.queue_get(queue)
+            except Exception, e:
+                log.msg("ERROR: oper.queue_get('%s') failed: %s" % (queue, e))
+                raise cyclone.web.HTTPError(503)
+
+            CustomHandler(self, callback).finish(value)
+        else:
+            try:
+                allqueues = yield self.settings.oper.queue_all()
+            except Exception, e:
+                log.msg("ERROR: oper.queue_all() failed: %s" % e)
+                raise cyclone.web.HTTPError(503)
+
+            self.render("list_queues.html", route="q", extended_route="REST", allqueues=allqueues["queues"])
+
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def post(self, queue):
         value = self.get_argument("value")
         callback = self.get_argument("callback", None)
+
         try:
             result = yield self.settings.oper.queue_add(queue, value)
         except Exception, e:
-            raise cyclone.web.HTTPError(400, str(e))
+            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, value))
+            raise cyclone.web.HTTPError(503)
 
-        self.settings.comet.queue.put(queue)
-        CustomHandler(self, callback).finish(result)
-    
+        if result:
+            self.settings.comet.queue.put(queue)
+            CustomHandler(self, callback).finish(result)
+        else:
+            raise cyclone.web.HTTPError(400)
+
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def delete(self, queue):
         callback = self.get_argument("callback", None)
         clients = self.settings.comet.presence.get(queue, [])
-        for c in clients:
+
+        for conn in clients:
             try:
-                c.finish()
-            except:
-                pass
+                conn.finish()
+            except Exception, e:
+                log.msg("ERROR: cannot close client connection: %s = %s" % (conn, e))
+
         try:
-            ret = yield self.settings.oper.queue_purgue(queue)
-        except:
-            ret='Error: Queue was not purged'
-        CustomHandler(self, callback).finish(ret)
+            result = yield self.settings.oper.queue_purge(queue)
+        except Exception, e:
+            log.msg("ERROR: oper.queue_purge('%s') failed: %s" % (queue, e))
+            raise cyclone.web.HTTPError(503)
+
+        CustomHandler(self, callback).finish(result)
 
 
 class QueueHandler(cyclone.web.RequestHandler):
@@ -131,22 +152,30 @@ class QueueHandler(cyclone.web.RequestHandler):
         self.redirect("/static/help.html")
     
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def post(self):
-        body = self.get_argument('body')
+        msg = self.get_argument("msg", None)
+        body = self.get_argument("body", None)
+
+        if msg is None and body is None:
+            raise cyclone.web.HTTPError(400)
+
         try:
-            jsonbody = cyclone.escape.json_decode(body)
+            jsonbody = cyclone.escape.json_decode(msg or body)
             cmd = jsonbody["cmd"]
             assert cmd
         except:
-            raise cyclone.web.HTTPError(400, 'Malformed json. Invalid format.')
+            raise cyclone.web.HTTPError(400, "Malformed JSON. Invalid format.")
         
-        d = dispatch.CommandDispatch(self.settings.oper)
-        r = yield d.execute(cmd, jsonbody)
-        if not r:
-            r = cyclone.escape.json_encode({"error":"null resultset"})
+        try:
+            result = yield dispatch.CommandDispatch(self.settings.oper).execute(cmd, jsonbody)
+        except Exception, e:
+            log.msg("ERROR: CommandDispatch/oper.%s('%s') failed: %s" % (cmd, jsonbody, e))
+            raise cyclone.web.HTTPError(503)
 
-        self.finish(r)
+        if result:
+            self.finish(result)
+        else:
+            self.finish(cyclone.escape.json_encode({"error":"null resultset"}))
 
 
 class CometQueueHandler(cyclone.web.RequestHandler):
@@ -156,7 +185,7 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         deletion is not handled here for now.
         As each queue object has its own key, it can be done thru /queue interface
     """
-    def _disconnected(self, why, handler, queue_name):
+    def _on_disconnect(self, why, handler, queue_name):
         try:
             self.settings.comet.presence[queue_name].remove(handler)
             if not len(self.settings.comet.presence[queue_name]):
@@ -176,73 +205,90 @@ class CometQueueHandler(cyclone.web.RequestHandler):
 
         self.set_header("Content-Type", "text/plain")
         callback = self.get_argument("callback", None)
+
         handler = CustomHandler(self, callback)
-        queue_name = queue.encode("utf-8")
+
+        try:
+            queue_name = queue.encode("utf-8")
+        except:
+            raise cyclone.web.HTTPError(400, "Invalid Queue Name")
+
         self.settings.comet.presence[queue_name].append(handler)
-        self.notifyFinish().addCallback(self._disconnected, handler, queue_name)
+        self.notifyFinish().addCallback(self._on_disconnect, handler, queue_name)
 
 
 class PolicyQueueHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def get(self, queue):
         callback = self.get_argument("callback", None)
+
         try:
             policy = yield self.settings.oper.queue_policy_get(queue)
         except Exception, e:
-            raise cyclone.web.HTTPError(404, str(e))
+            log.msg("ERROR: oper.queue_policy_get('%s') failed: %s" % (queue, e))
+            raise cyclone.web.HTTPError(503)
 
         CustomHandler(self, callback).finish(policy)
 
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def post(self, queue):
         policy = self.get_argument("policy")
         callback = self.get_argument("callback", None)
+
         try:
             result = yield self.settings.oper.queue_policy_set(queue, policy)
         except Exception, e:
-            raise cyclone.web.HTTPError(400, "Error posting %s" % str(e))
+            log.msg("ERROR: oper.queue_policy_set('%s', '%s') failed: %s" % (queue, policy, e))
+            raise cyclone.web.HTTPError(503)
 
         CustomHandler(self, callback).finish(result)
 
 
 class JobQueueInfoHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def get(self, queue):
         try:
             jobs = yield self.settings.oper.queue_last_items(queue)
             job_count = yield self.settings.oper.queue_len(queue)
             queue_obj_count = yield self.settings.oper.queue_count_elements(queue)
-            self.render("jobs.html", queue=queue, jobs=jobs, job_count=job_count, queue_size=queue_obj_count)
         except Exception, e:
-            log.msg("cannot get data: %s" % str(e))
-            raise cyclone.web.HTTPError(400, str(e))
+            log.msg("ERROR: Cannot get JOB data: queue=%s, %s" % (queue, e))
+            raise cyclone.web.HTTPError(503)
+
+        self.render("jobs.html", queue=queue, jobs=jobs, job_count=job_count, queue_size=queue_obj_count)
 
 
 class StatusHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def get(self, queue):
         # application/json or text/json ? 
         self.set_header("Content-Type", "text/plain")
-        if queue == None or len(queue) < 1:
-            allqueues = yield self.settings.oper.queue_all()
-            stats={'redis': repr(self.settings.db), 
-                'queues': list(allqueues['queues']),
-                'count': len(allqueues['queues'])}
-            self.finish("%s\n" % cyclone.escape.json_encode(stats))
+
+        if queue is None or len(queue) < 1:
+            try:
+                allqueues = yield self.settings.oper.queue_all()
+            except Exception, e:
+                log.msg("ERROR: oper.queue_all() failed: %s" % e)
+                raise cyclone.web.HTTPError(503)
+
+            self.finish("%s\r\n" % cyclone.escape.json_encode({
+                "redis": repr(self.settings.db), 
+                "queues": list(allqueues["queues"]),
+                "count": len(allqueues["queues"])}))
         else:
-            qlen = yield self.settings.oper.queue_len(queue)
-            stats={'redis': repr(self.settings.db), 
-                'queue': queue,
-                'len': qlen}
-            self.finish("%s\n" % cyclone.escape.json_encode(stats))
+            try:
+                qlen = yield self.settings.oper.queue_len(queue)
+            except Exception, e:
+                log.msg("ERROR: oper.queue_len('%s') failed: %s" % (queue, e))
+                raise cyclone.web.HTTPError(503)
+
+            self.finish("%s\r\n" % cyclone.escape.json_encode({
+                "redis": repr(self.settings.db), 
+                "queue": queue, "len": qlen}))
 
 
 class CometDispatcher(object):
-    def __init__(self, oper, del_obj = True):
+    def __init__(self, oper, del_obj=True):
         self.oper = oper
         self.queue = defer.DeferredQueue()
         self.presence = defaultdict(lambda: [])
@@ -256,21 +302,27 @@ class CometDispatcher(object):
         self.dispatch(queue_name)
         self.queue.get().addCallback(self._new_data)
 
+    def _auto_dispatch(self):
+        for queue_name, handlers in self.presence.items():
+            self.dispatch(queue_name, handlers)
+
     def _counters_cleanup(self):
         keys = self.qcounter.keys()
         for queue_name in keys:
             if not self.presence.has_key(queue_name):
                 self.qcounter.pop(queue_name)
 
-    def _auto_dispatch(self):
-        for queue_name, handlers in self.presence.items():
-            self.dispatch(queue_name, handlers)
-
     @defer.inlineCallbacks
     def dispatch(self, queue_name, handlers=None):
-        qstat = yield self.oper.queue_status(queue_name)
-        if qstat['status'] != self.oper.STARTQUEUE:
-            return
+        try:
+            qstat = yield self.oper.queue_status(queue_name)
+        except Exception, e:
+            log.msg("ERROR: oper.queue_status('%s') failed: %s" % (queue_name, e))
+            defer.returnValue(None)
+
+        if qstat["status"] != self.oper.STARTQUEUE:
+            defer.returnValue(None)
+
         handlers = handlers or self.presence.get(queue_name)
         if handlers:
             size = len(handlers)
@@ -295,46 +347,68 @@ class CometDispatcher(object):
                     handler.write(cyclone.escape.json_encode(content))
                     handler.flush()
                 except Exception, e:
-                    log.msg("cannot dump to comet client: %s" % str(e))
+                    log.msg("ERROR: Cannot write to comet client: %s = %s" % (handler, e))
 
 
 class QueueControlHandler(cyclone.web.RequestHandler):
     """ QueueControlHandler stops/starts a queue (pause consumers)"""
 
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def get(self, queue):
         self.set_header("Content-Type", "text/plain")
+
         stats={}
-        if queue == None or len(queue) < 1:
-            allqueues = yield self.settings.oper.queue_all()
+        if queue:
+            try:
+                qstat = yield self.settings.oper.queue_status(queue)
+            except Exception, e:
+                log.msg("ERROR: oper.queue_status('%s') failed: %s" % (queue, e))
+                raise cyclone.web.HTTPError(503)
+
+            stats={"redis": repr(self.settings.db), "queue": queue, "status": qstat}
+
+        else:
+            try:
+                allqueues = yield self.settings.oper.queue_all()
+            except Exception, e:
+                log.msg("ERROR: oper.queue_all() failed: %s" % e)
+                raise cyclone.web.HTTPError(503)
+
             aq={}
             for q in allqueues:
-                aq[q]=yield self.settings.oper.queue_status(q)
+                try:
+                    aq[q] = yield self.settings.oper.queue_status(q)
+                except Exception, e:
+                    log.msg("ERROR: oper.queue_status('%s') failed: %s" % (q, e))
+                    raise cyclone.web.HTTPError(503)
     
-            stats={'redis': repr(self.settings.db), 
-                'queues': aq,
-                'count': len(aq)}
-        else:
-            qstat = yield self.settings.oper.queue_status(queue)
-            stats={'redis': repr(self.settings.db), 
-                'queue': queue,
-                'status': qstat}
+            stats={"redis": repr(self.settings.db), "queues": aq, "count": len(aq)}
 
-        self.finish("%s\n" % cyclone.escape.json_encode(stats))
+        self.finish("%s\r\n" % cyclone.escape.json_encode(stats))
     
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def post(self, queue):
         status = self.get_argument("status", None)
-        if status == 'start':
-            qstat = yield self.settings.oper.queue_changestatus(queue, self.settings.oper.STARTQUEUE)
-        elif status =='stop':
-            qstat = yield self.settings.oper.queue_changestatus(queue, self.settings.oper.STOPQUEUE)
-        else:
-            qstat = 'invalid status: %s' % status
 
-        self.finish("%s\n" % cyclone.escape.json_encode({'stat':qstat}))
+        if status == "start":
+            try:
+                qstat = yield self.settings.oper.queue_changestatus(queue, self.settings.oper.STARTQUEUE)
+            except Exception, e:
+                log.msg("ERROR: oper.queue_changestatus('%s', STARTQUEUE) failed: %s" % (queue, e))
+                raise cyclone.web.HTTPError(503)
+
+        elif status == "stop":
+            try:
+                qstat = yield self.settings.oper.queue_changestatus(queue, self.settings.oper.STOPQUEUE)
+            except Exception, e:
+                log.msg("ERROR: oper.queue_changestatus('%s', STOPQUEUE) failed: %s" % (queue, e))
+                raise cyclone.web.HTTPError(503)
+
+        else:
+            qstat = "invalid status: %s" % status
+
+        self.finish("%s\r\n" % cyclone.escape.json_encode({'stat':qstat}))
+
 
 class WebSocketQueueHandler(cyclone.web.WebSocketHandler):
     """
@@ -349,25 +423,26 @@ class WebSocketQueueHandler(cyclone.web.WebSocketHandler):
             pass
     
     def connectionMade(self, queue):
-        log.msg("connection made: %s" % queue)
         self.queue = queue
         handler = CustomHandler(self, None)
-        queue_name = queue.encode("utf-8")
+
+        try:
+            queue_name = queue.encode("utf-8")
+        except:
+            raise cyclone.web.HTTPError(400, "Invalid Queue Name")
+
         self.settings.comet.presence[queue_name].append(handler)
         self.notifyFinish().addCallback(self._disconnected, handler, queue_name)
-
-    def connectionLost(self, why):
-        log.msg("connection lost:", why)
 
     def messageReceived(self, message):
         """
             same idea as COMET consumer, but using websockets. how cool is that ?
         """
-        print "msg recv: %s" % message
         self.sendMessage(message)
 
+
 class Application(cyclone.web.Application):
-    def __init__(self):
+    def __init__(self, redis_host, redis_port, redis_pool):
         handlers = [
             (r"/",       IndexHandler),
             (r"/q/(.*)", RestQueueHandler),
@@ -380,7 +455,7 @@ class Application(cyclone.web.Application):
             (r"/ws/(.*)",  WebSocketQueueHandler),
         ]
 
-        db = txredisapi.lazyRedisConnectionPool(pool_size=10)
+        db = cyclone.redis.lazyRedisConnectionPool(redis_host, redis_port, pool_size=redis_pool)
         oper = core.RedisOperations(db)
         cwd = os.path.dirname(__file__)
 
