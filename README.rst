@@ -175,7 +175,7 @@ Files
 If you're a developer looking for extending RestMQ's functionality, have a look at these files:
 
 - restmq/web.py: the web service code
-- restmq/oper.py: redis/queue operations logic
+- restmq/core.py: redis/queue operations logic
 - restmq/dispatch.py: a simple command dispatcher
 - restmq_engine.py: the redis abstraction layer to the queue algorithm (command line tool)
 
@@ -183,5 +183,5 @@ If you're a developer looking for extending RestMQ's functionality, have a look 
 Credits
 =======
 Thanks to (in no particular order):
-    Salvatore Sanfilippo for redis and for NoSQL patterns discussion.
-    Alexandre Fiori for the redis client enhancement and patches.
+- Salvatore Sanfilippo for redis and for NoSQL patterns discussion.
+- Alexandre Fiori for the redis client enhancement and patches.
