@@ -7,18 +7,37 @@ Redis based message queue.
 
 :Info: See `my blog <http://zenmachine.wordpress.com>`_ for more information.
 :Author: Gleicon Moraes <gleicon@gmail.com>
-:Author: Alexandre Fiori
+:Author: `Alexandre Fiori <http://github.com/fiorix/>`_
 
 
 About
 =====
+
 RestMQ is a message queue which uses HTTP as transport, JSON to format a minimalist protocol and is organized as REST 
-resources. It stands on the shoulder of giants, built over Python, Twisted, Cyclone (a Tornado implementation over twisted) and Redis.
+resources. It stands on the shoulder of giants, built over Python, Twisted, `Cyclone <http://github.com/fiorix/cyclone>`_ (a Tornado implementation over twisted) and Redis.
 
 Redis is more than just a key/value db, and its data types provided support for this project.
 
-The queues are created on the fly, as a message is sent to them. They are simple to use as a curl request can be.
+Queues are created on the fly, when a message is sent to them. They are simple to use as a curl request can be.
 
+Queue Policy
+============
+
+Every queue is created with a default policy, which is `broadcast`. It means that each message
+pushed to a queue will be forwarded to all comet and websocket consumers.
+
+The alternative policy is `roundrobin`, which will distribute these messages in a round robin 
+fashion to all comet and websocket consumers.
+
+The queue policy won't affect regular GET commands to pop a single message from a queue.
+
+See `README.qp <http://github.com/gleicon/restmq/blob/master/README.qp>`_ for details.
+
+
+Queue Flow Control
+==================
+
+Yes, it does support start and stop. We just need to document it properly.
 
 
 Example
@@ -39,22 +58,23 @@ COMET consumer
 
 There is a COMET based consumer, which will bind even if the queue doesn't already exists. 
 
-The main route is thru /c/<queuename>, It can be tested using curl:
+The main route is thru /c/<queuename>. It can be tested using curl:
 
 $ curl http://localhost:8888/c/test
 
-In another terminal, run $ curl -X POST -d "queue=test&value=foobar" http://localhost:8888/ 
+In another terminal, run $ curl -d "queue=test&value=foobar" http://localhost:8888/ 
 
 This is the basic usage pattern for map/reduce (see examples).
 
 See below on how to purge and disconnect all consumers from a queue, using DELETE.
+
 
 WebSocket consumer
 ==================
 
 Now that cyclone has websockets support, check README.websocket to test it. 
 
-If you are using a browser or library which already supports websockets, you may take advantage of this interface
+If you are using a browser or library which already supports websockets, you may take advantage of this interface.
 
 
 REST services
@@ -102,35 +122,38 @@ It really mimics some of `Amazon SQS <http://aws.amazon.com/sqs/>`_ workings, be
 For the first release it has:
 
 - Select, EPoll or KQueue concurrency (depends on twisted)
-- Persistent queueing using Redis
+- Persistent storage using Redis
 - Can work on pools, N daemons consuming from the same queues.
-- Cute ?
 - Small codebase
+- Lightweight
+- Cute ?
 
 
 Dependencies
 ============
-- python, twisted
-- `redis client <http://github.com/fiorix/txredisapi>`_: 
-  git clone git://github.com/fiorix/txredisapi.git
 - `cyclone <http://github.com/fiorix/cyclone>`_: 
   git clone git://github.com/fiorix/cyclone.git 
 
 
 Running
 =======
-Development environment:
+
+The `redis_server <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq_server>`_ script will start the service. It's a bash script used to both configure and run RestMQ. The default version of the wrapper script will run the server in foreground, and log messages will be written to the standard output.
+
+Editing the script is mandatory for configuring RestMQ for production.
 
 ::
 
-    twistd -ny restmq_server.tac
-
-Production environment (needs epoll and proper user/group): 
-
-::
-
-    twistd --pidfile=/var/run/restmq.pid --logfile=/var/log/restmq.log \
-           --reactor=epoll --uid=www-data --gid=www-data --python=restmq_server.tac
+    $ ./restmq_server --help
+    Usage: twistd [options] restmq [options]
+    Options:
+          --redis-host=  hostname or ip address of the redis server [default: 127.0.0.1]
+          --redis-port=  port number of the redis server [default: 6379]
+          --redis-pool=  connection pool size [default: 10]
+          --port=        port number to listen on [default: 8888]
+          --listen=      interface to listen on [default: 127.0.0.1]
+          --version      
+          --help         Display this help and exit.
 
 
 Tests
@@ -148,9 +171,13 @@ Tests
 
 Files
 =====
-- restmq/dispatch.py: - a simple command dispatcher
-- restmq_engine.py: the redis abstraction layer to the queue algorithm
-- restmq_server.tac - the main app (a web service)
+
+If you're a developer looking for extending RestMQ's functionality, have a look at these files:
+
+- restmq/web.py: the web service code
+- restmq/oper.py: redis/queue operations logic
+- restmq/dispatch.py: a simple command dispatcher
+- restmq_engine.py: the redis abstraction layer to the queue algorithm (command line tool)
 
 
 Credits
