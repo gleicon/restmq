@@ -113,7 +113,6 @@ class RedisOperations:
             ckey = '%s:%s' % (QUEUE_STATUS, queue)
             res = yield self.redis.set(ckey, self.STARTQUEUE)
 
-
         res = yield self.redis.push(lkey, key)
         defer.returnValue(key)
 
@@ -137,7 +136,6 @@ class RedisOperations:
 
         if okey == None:
             defer.returnValue((None, None))
-            return
 
         #val = yield self.redis.get(okey.encode('utf-8'))
         qpkey = "%s:queuepolicy" % queue
@@ -147,7 +145,6 @@ class RedisOperations:
             c = yield self.redis.incr('%s:refcount' % okey.encode('utf-8'))
 
         defer.returnValue((policy or POLICY_BROADCAST, {'key':okey, 'value':val, 'count':c}))
-
     
     @defer.inlineCallbacks
     def queue_del(self, queue, okey):
@@ -180,21 +177,21 @@ class RedisOperations:
         okey = yield self.redis.pop(lkey) # take from queue's list
         if okey == None:
             defer.returnValue((None, False))
-            return
+
         okey = self.normalize(okey)
         nkey = '%s:lock' % okey
         ren = yield self.redis.rename(okey, nkey) # rename key
 
         if ren == None:
             defer.returnValue((None,None))
-            return
 
         qpkey = "%s:queuepolicy" % queue
         (policy, val) = yield self.redis.mget(qpkey, nkey)
         delk = yield self.redis.delete(nkey)
         if delk == 0:
             defer.returnValue((None, None))
-        defer.returnValue((policy, {'key':okey, 'value':val}))
+        else:
+            defer.returnValue((policy, {'key':okey, 'value':val}))
 
     @defer.inlineCallbacks
     def queue_policy_set(self, queue, policy):
@@ -263,7 +260,6 @@ class RedisOperations:
         except Exception, e:
             defer.returnValue({"error":str(e)})
 
-
     @defer.inlineCallbacks
     def queue_last_items(self, queue, count=10): 
         """
@@ -285,7 +281,6 @@ class RedisOperations:
         res = yield self.redis.set(key, status)
         defer.returnValue({'queue':queue, 'status':status})
 
-
     @defer.inlineCallbacks
     def queue_status(self, queue):
         key = '%s:%s' % (QUEUE_STATUS, queue)
@@ -293,7 +288,7 @@ class RedisOperations:
         defer.returnValue({'queue':queue, 'status':res})
 
     @defer.inlineCallbacks
-    def queue_purgue(self, queue):
+    def queue_purge(self, queue):
         #TODO Must del all keys (or set expire)
         #it could rename the queue list, add to a deletion SET and use a task to clean it
 
