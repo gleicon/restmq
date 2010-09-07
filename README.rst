@@ -138,7 +138,7 @@ Dependencies
 Running
 =======
 
-The `redis_server <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq_server>`_ script will start the service. It's a bash script used to both configure and run RestMQ. The default version of the wrapper script will run the server in foreground, and log messages will be written to the standard output.
+The `redis_server <http://github.com/gleicon/restmq/blob/master/restmq_server>`_ script will start the service. It's a bash script used to both configure and run RestMQ. The default version of the wrapper script will run the server in foreground, and log messages will be written to the standard output.
 
 Editing the script is mandatory for configuring RestMQ for production.
 
@@ -174,10 +174,10 @@ Files
 
 If you're a developer looking for extending RestMQ's functionality, have a look at these files:
 
-- `restmq/web.py <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq/web.py>`_: the web service code
-- `restmq/core.py <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq/core.py>`_: redis/queue operations logic
-- `restmq/dispatch.py <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq/dispatch.py>`_: a simple command dispatcher
-- `restmq_engine.py <http://github.com/gleicon/restmq/blob/twisted_plugin/restmq_engine.py>`_: the redis abstraction layer to the queue algorithm (command line tool)
+- `restmq/web.py <http://github.com/gleicon/restmq/blob/master/restmq/web.py>`_: the web service code
+- `restmq/core.py <http://github.com/gleicon/restmq/blob/master/restmq/core.py>`_: redis/queue operations logic
+- `restmq/dispatch.py <http://github.com/gleicon/restmq/blob/master/restmq/dispatch.py>`_: a simple command dispatcher
+- `restmq_engine.py <http://github.com/gleicon/restmq/blob/master/restmq_engine.py>`_: the redis abstraction layer to the queue algorithm (command line tool)
 
 
 Credits
