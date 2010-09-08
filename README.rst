@@ -46,7 +46,7 @@ A http client (curl) post to /queue:
 
 Point your browser to http://localhost:8888/c/test
 
-Run $ curl -d "queue=test&value=foobar" http://localhost:8888/ 
+Run $ curl -d "queue=test&msg=foobar" http://localhost:8888/ 
 
 Your browser is acting as a consumer to the queue. Using json encoded data it's easy to fit the data into a js based app.
 
@@ -62,7 +62,7 @@ The main route is thru /c/<queuename>. It can be tested using curl:
 
 $ curl http://localhost:8888/c/test
 
-In another terminal, run $ curl -d "queue=test&value=foobar" http://localhost:8888/ 
+In another terminal, run $ curl -d "queue=test&msg=foobar" http://localhost:8888/ 
 
 This is the basic usage pattern for map/reduce (see examples).
 
@@ -147,6 +147,7 @@ Editing the script is mandatory for configuring RestMQ for production.
     $ ./restmq_server --help
     Usage: twistd [options] restmq [options]
     Options:
+          --acl=         acl configuration file for endpoints [default: acl.conf]
           --redis-host=  hostname or ip address of the redis server [default: 127.0.0.1]
           --redis-port=  port number of the redis server [default: 6379]
           --redis-pool=  connection pool size [default: 10]

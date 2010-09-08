@@ -1,16 +1,42 @@
 # coding: utf-8
 
 import types
+import base64
+import hashlib
 import os.path
+import functools
 import cyclone.web
 import cyclone.redis
 import cyclone.escape
 from collections import defaultdict
+from ConfigParser import ConfigParser
+
 from twisted.python import log
-from twisted.internet import task, defer
+from twisted.internet import task, defer, reactor
 
 from restmq import core
 from restmq import dispatch
+
+class InvalidAddress(Exception):
+    pass
+
+class InvalidPassword(Exception):
+    pass
+
+def authorize(category):
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            try:
+                self.settings.acl.apply(self, category)
+            except InvalidAddress:
+                raise cyclone.web.HTTPError(401)
+            except InvalidPassword:
+                raise cyclone.web.HTTPAuthenticationRequired("Basic", "RestMQ Restricted Access")
+            else:
+                return method(self, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 class CustomHandler(object):
@@ -40,6 +66,7 @@ class CustomHandler(object):
 
 
 class IndexHandler(cyclone.web.RequestHandler):
+    @authorize("rest_consumer")
     @defer.inlineCallbacks
     def get(self):
         queue = self.get_argument("queue", None)
@@ -60,11 +87,14 @@ class IndexHandler(cyclone.web.RequestHandler):
         else:
             raise cyclone.web.HTTPError(404)
 
-
+    @authorize("rest_producer")
     @defer.inlineCallbacks
     def post(self):
         queue = self.get_argument("queue")
-        value = self.get_argument("value")
+        msg = self.get_argument("msg", None)
+        value = self.get_argument("value", None)
+        if msg is None and value is None:
+            raise cyclone.web.HTTPError(400)
         callback = self.get_argument("callback", None)
 
         try:
@@ -87,6 +117,7 @@ class RestQueueHandler(cyclone.web.RequestHandler):
         POST /q/queuename inserts an object in the queue (I know, it could be PUT). The payload comes in the parameter body
         DELETE method purge and delete the queue. It will close all comet connections.
     """
+    @authorize("rest_consumer")
     @defer.inlineCallbacks
     def get(self, queue):
         callback = self.get_argument("callback", None)
@@ -108,15 +139,19 @@ class RestQueueHandler(cyclone.web.RequestHandler):
 
             self.render("list_queues.html", route="q", extended_route="REST", allqueues=allqueues["queues"])
 
+    @authorize("rest_producer")
     @defer.inlineCallbacks
     def post(self, queue):
-        value = self.get_argument("value")
+        msg = self.get_argument("msg", None)
+        value = self.get_argument("value", None)
+        if msg is None and value is None:
+            raise cyclone.web.HTTPError(400)
         callback = self.get_argument("callback", None)
 
         try:
-            result = yield self.settings.oper.queue_add(queue, value)
+            result = yield self.settings.oper.queue_add(queue, msg or value)
         except Exception, e:
-            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, value))
+            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, msg or value))
             raise cyclone.web.HTTPError(503)
 
         if result:
@@ -125,6 +160,7 @@ class RestQueueHandler(cyclone.web.RequestHandler):
         else:
             raise cyclone.web.HTTPError(400)
 
+    @authorize("rest_producer")
     @defer.inlineCallbacks
     def delete(self, queue):
         callback = self.get_argument("callback", None)
@@ -151,6 +187,7 @@ class QueueHandler(cyclone.web.RequestHandler):
     def get(self):
         self.redirect("/static/help.html")
     
+    @authorize("rest_producer")
     @defer.inlineCallbacks
     def post(self):
         msg = self.get_argument("msg", None)
@@ -193,6 +230,7 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         except:
             pass
 
+    @authorize("comet_consumer")
     @cyclone.web.asynchronous
     def get(self, queue):
         """
@@ -218,6 +256,7 @@ class CometQueueHandler(cyclone.web.RequestHandler):
 
 
 class PolicyQueueHandler(cyclone.web.RequestHandler):
+    @authorize("rest_consumer")
     @defer.inlineCallbacks
     def get(self, queue):
         callback = self.get_argument("callback", None)
@@ -230,6 +269,7 @@ class PolicyQueueHandler(cyclone.web.RequestHandler):
 
         CustomHandler(self, callback).finish(policy)
 
+    @authorize("rest_producer")
     @defer.inlineCallbacks
     def post(self, queue):
         policy = self.get_argument("policy")
@@ -259,6 +299,7 @@ class JobQueueInfoHandler(cyclone.web.RequestHandler):
 
 
 class StatusHandler(cyclone.web.RequestHandler):
+    @authorize("rest_consumer")
     @defer.inlineCallbacks
     def get(self, queue):
         # application/json or text/json ? 
@@ -353,6 +394,7 @@ class CometDispatcher(object):
 class QueueControlHandler(cyclone.web.RequestHandler):
     """ QueueControlHandler stops/starts a queue (pause consumers)"""
 
+    @authorize("rest_consumer")
     @defer.inlineCallbacks
     def get(self, queue):
         self.set_header("Content-Type", "text/plain")
@@ -386,6 +428,7 @@ class QueueControlHandler(cyclone.web.RequestHandler):
 
         self.finish("%s\r\n" % cyclone.escape.json_encode(stats))
     
+    @authorize("rest_producer")
     @defer.inlineCallbacks
     def post(self, queue):
         status = self.get_argument("status", None)
@@ -422,6 +465,17 @@ class WebSocketQueueHandler(cyclone.web.WebSocketHandler):
         except:
             pass
     
+    def headersReceived(self, headers):
+        # for authenticated websocket clientes, the browser must set a
+        # cookie like this:
+        #   document.cookie = "auth=user:password"
+        #
+        # see ACL.check_password for details
+        try:
+            self.settings.acl.apply(self, "websocket_consumer", websocket=True)
+        except:
+            raise cyclone.web.HTTPError(401)
+
     def connectionMade(self, queue):
         self.queue = queue
         handler = CustomHandler(self, None)
@@ -441,8 +495,115 @@ class WebSocketQueueHandler(cyclone.web.WebSocketHandler):
         self.sendMessage(message)
 
 
+class ACL(object):
+    def __init__(self, filename):
+        self.md5 = None
+        self.filename = filename
+
+        self.rest_producer = {}
+        self.rest_consumer = {}
+        self.comet_consumer = {}
+        self.websocket_consumer = {}
+
+        self.parse(True)
+
+    def parse(self, firstRun=False):
+        try:
+            fp = open(self.filename)
+            md5 = hashlib.md5(fp.read()).hexdigest()
+
+            if self.md5 is None:
+                self.md5 = md5
+            else:
+                if self.md5 == md5:
+                    return fp.close()
+
+            fp.seek(0)
+            cfg = ConfigParser()
+            cfg.readfp(fp)
+            fp.close()
+
+        except Exception, e:
+            if firstRun:
+                raise e
+            else:
+                log.msg("ERROR: Could not reload configuration: %s" % e)
+                return
+        else:
+            if not firstRun:
+                log.msg("Reloading ACL configuration")
+
+        for section in ("rest:producer", "rest:consumer", "comet:consumer", "websocket:consumer"):
+            d = getattr(self, section.replace(":", "_"))
+
+            try:
+                hosts_allow = cfg.get(section, "hosts_allow")
+                d["hosts_allow"] = hosts_allow != "all" and hosts_allow.split() or None
+            except:
+                d["hosts_allow"] = None
+
+            try:
+                hosts_deny = cfg.get(section, "hosts_deny")
+                d["hosts_deny"] = hosts_deny != "all" and hosts_deny.split() or None
+            except:
+                d["hosts_deny"] = None
+
+            try:
+                username = cfg.get(section, "username")
+                d["username"] = username
+            except:
+                d["username"] = None
+
+            try:
+                password = cfg.get(section, "password")
+                d["password"] = password
+            except:
+                d["password"] = None
+
+        reactor.callLater(60, self.parse)
+
+    def check_password(self, client, username, password, websocket):
+        try:
+            if websocket is True:
+                rusername, rpassword = client.get_cookie("auth").split(":", 1)
+                assert username == rusername and password == rpassword
+
+            else:
+                authtype, authdata = client.request.headers["Authorization"].split()
+                assert authtype == "Basic"
+                rusername, rpassword = base64.b64decode(authdata).split(":", 1)
+                assert username == rusername and password == rpassword
+        except:
+            raise InvalidPassword
+
+    def apply(self, client, category, websocket=False):
+        acl = getattr(self, category)
+        require_password = acl["username"] and acl["password"]
+
+        if acl["hosts_allow"]:
+            for ip in acl["hosts_allow"]:
+                if client.request.remote_ip.startswith(ip):
+                    if require_password:
+                        self.check_password(client,
+                            acl["username"], acl["password"], websocket)
+                        return
+                    else:
+                        return
+
+            if acl["hosts_deny"] is None:
+                raise InvalidAddress("ip address %s not allowed" % client.request.remote_ip)
+
+        if acl["hosts_deny"]:
+            for ip in acl["hosts_deny"]:
+                if client.request.remote_ip.startswith(ip):
+                    raise InvalidAddress("ip address %s not allowed" % client.request.remote_ip)
+
+        if require_password:
+            self.check_password(client, acl["username"], acl["password"], websocket)
+
+
 class Application(cyclone.web.Application):
-    def __init__(self, redis_host, redis_port, redis_pool):
+    def __init__(self, acl_file, redis_host, redis_port, redis_pool, redis_db):
         handlers = [
             (r"/",       IndexHandler),
             (r"/q/(.*)", RestQueueHandler),
@@ -455,12 +616,22 @@ class Application(cyclone.web.Application):
             (r"/ws/(.*)",  WebSocketQueueHandler),
         ]
 
-        db = cyclone.redis.lazyRedisConnectionPool(redis_host, redis_port, pool_size=redis_pool)
+        try:
+            acl = ACL(acl_file)
+        except Exception, e:
+            log.msg("ERROR: Cannot load ACL file: %s" % e)
+            raise RuntimeError("Cannot load ACL file: %s" % e)
+
+        db = cyclone.redis.lazyRedisConnectionPool(
+            redis_host, redis_port,
+            pool_size=redis_pool, db=redis_db)
+
         oper = core.RedisOperations(db)
         cwd = os.path.dirname(__file__)
 
         settings = {
             "db": db,
+            "acl": acl,
             "oper": oper,
             "comet": CometDispatcher(oper),
             "static_path": os.path.join(cwd, "static"),

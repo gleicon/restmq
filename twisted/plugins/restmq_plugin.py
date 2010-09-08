@@ -10,9 +10,11 @@ import restmq.web
 
 class Options(usage.Options):
     optParameters = [
+        ["acl", "", "acl.conf", "acl configuration file for endpoints"],
         ["redis-host", "", "127.0.0.1", "hostname or ip address of the redis server"],
         ["redis-port", "", 6379, "port number of the redis server"],
         ["redis-pool", "", 10, "connection pool size"],
+        ["redis-db", "", 0, "redis database"],
         ["port", "", 8888, "port number to listen on"],
         ["listen", "", "127.0.0.1", "interface to listen on"],
     ]
@@ -25,7 +27,9 @@ class ServiceMaker(object):
 
     def makeService(self, options):
         return internet.TCPServer(options["port"],
-            restmq.web.Application(options["redis-host"], options["redis-port"], options["redis-pool"]),
+            restmq.web.Application(options["acl"],
+                options["redis-host"], options["redis-port"],
+                options["redis-pool"], options["redis-db"]),
             interface=options["listen"])
 
 serviceMaker = ServiceMaker()
