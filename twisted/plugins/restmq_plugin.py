@@ -12,10 +12,10 @@ class Options(usage.Options):
     optParameters = [
         ["acl", "", "acl.conf", "acl configuration file for endpoints"],
         ["redis-host", "", "127.0.0.1", "hostname or ip address of the redis server"],
-        ["redis-port", "", 6379, "port number of the redis server"],
-        ["redis-pool", "", 10, "connection pool size"],
-        ["redis-db", "", 0, "redis database"],
-        ["port", "", 8888, "port number to listen on"],
+        ["redis-port", "", 6379, "port number of the redis server", int],
+        ["redis-pool", "", 10, "connection pool size", int],
+        ["redis-db", "", 0, "redis database", int],
+        ["port", "", 8888, "port number to listen on", int],
         ["listen", "", "127.0.0.1", "interface to listen on"],
     ]
 
