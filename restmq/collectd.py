@@ -1,21 +1,13 @@
 # coding: utf-8
 
-import types
-import base64
-import hashlib
 import os.path
-import functools
 import cyclone.web
 import cyclone.redis
-import cyclone.escape
-from collections import defaultdict
-from ConfigParser import ConfigParser
 
 from twisted.python import log
-from twisted.internet import task, defer, reactor
+from twisted.internet import defer
 
 from restmq import core
-from restmq import dispatch
 
 import simplejson
 import web
@@ -64,12 +56,12 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
         else:
             raise cyclone.web.HTTPError(400)
 
-class Application(cyclone.web.Application):
+class Collectd(web.Application):
+
     def __init__(self, acl_file, redis_host, redis_port, redis_pool, redis_db):
         handlers = [
             (r"/",       web.IndexHandler),
             (r"/q/(.*)", web.RestQueueHandler),
-            (r"/collectd/(.*)", CollectdRestQueueHandler),
             (r"/c/(.*)", web.CometQueueHandler),
             (r"/p/(.*)", web.PolicyQueueHandler),
             (r"/j/(.*)", web.JobQueueInfoHandler),
@@ -78,6 +70,8 @@ class Application(cyclone.web.Application):
             (r"/control/(.*)",  web.QueueControlHandler),
             (r"/ws/(.*)",  web.WebSocketQueueHandler),
         ]
+
+        handlers.append((r"/collectd/(.*)", CollectdRestQueueHandler))
 
         try:
             acl = web.ACL(acl_file)

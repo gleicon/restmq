@@ -27,7 +27,7 @@ class ServiceMaker(object):
 
     def makeService(self, options):
         return internet.TCPServer(options["port"],
-            restmq.collectd.Application(options["acl"],
+            restmq.collectd.Collectd(options["acl"],
                 options["redis-host"], options["redis-port"],
                 options["redis-pool"], options["redis-db"]),
             interface=options["listen"])
