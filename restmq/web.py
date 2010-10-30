@@ -100,7 +100,7 @@ class IndexHandler(cyclone.web.RequestHandler):
         try:
             result = yield self.settings.oper.queue_add(queue, value)
         except Exception, e:
-            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, value))
+            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, value, e))
             raise cyclone.web.HTTPError(503)
 
         if result:
@@ -111,7 +111,7 @@ class IndexHandler(cyclone.web.RequestHandler):
 
 
 class RestQueueHandler(cyclone.web.RequestHandler):
-    """ 
+    """
         RestQueueHandler applies HTTP Methods to a given queue.
         GET /q/queuename gets an object out of the queue.
         POST /q/queuename inserts an object in the queue (I know, it could be PUT). The payload comes in the parameter body
@@ -151,7 +151,7 @@ class RestQueueHandler(cyclone.web.RequestHandler):
         try:
             result = yield self.settings.oper.queue_add(queue, msg or value)
         except Exception, e:
-            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, msg or value))
+            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, msg or values, e))
             raise cyclone.web.HTTPError(503)
 
         if result:
@@ -186,7 +186,7 @@ class QueueHandler(cyclone.web.RequestHandler):
 
     def get(self):
         self.redirect("/static/help.html")
-    
+
     @authorize("rest_producer")
     @defer.inlineCallbacks
     def post(self):
@@ -202,7 +202,7 @@ class QueueHandler(cyclone.web.RequestHandler):
             assert cmd
         except:
             raise cyclone.web.HTTPError(400, "Malformed JSON. Invalid format.")
-        
+
         try:
             result = yield dispatch.CommandDispatch(self.settings.oper).execute(cmd, jsonbody)
         except Exception, e:
@@ -236,9 +236,9 @@ class CometQueueHandler(cyclone.web.RequestHandler):
         """
             this method is meant to build light http consumers emulating a subscription
             simple test: point the browser to /c/test
-            execute python engine.py -p, check the browser to see if the object appears, 
+            execute python engine.py -p, check the browser to see if the object appears,
             then execute engine.py -c again, to make another object appear in the browser.
-            Not it deletes objects from redis. To change it, set getdel to False on CometDispatcher 
+            Not it deletes objects from redis. To change it, set getdel to False on CometDispatcher
         """
 
         self.set_header("Content-Type", "text/plain")
@@ -302,7 +302,7 @@ class StatusHandler(cyclone.web.RequestHandler):
     @authorize("rest_consumer")
     @defer.inlineCallbacks
     def get(self, queue):
-        # application/json or text/json ? 
+        # application/json or text/json ?
         self.set_header("Content-Type", "text/plain")
 
         if queue is None or len(queue) < 1:
@@ -313,7 +313,7 @@ class StatusHandler(cyclone.web.RequestHandler):
                 raise cyclone.web.HTTPError(503)
 
             self.finish("%s\r\n" % cyclone.escape.json_encode({
-                "redis": repr(self.settings.db), 
+                "redis": repr(self.settings.db),
                 "queues": list(allqueues["queues"]),
                 "count": len(allqueues["queues"])}))
         else:
@@ -324,7 +324,7 @@ class StatusHandler(cyclone.web.RequestHandler):
                 raise cyclone.web.HTTPError(503)
 
             self.finish("%s\r\n" % cyclone.escape.json_encode({
-                "redis": repr(self.settings.db), 
+                "redis": repr(self.settings.db),
                 "queue": queue, "len": qlen}))
 
 
@@ -380,7 +380,7 @@ class CometDispatcher(object):
                 idx = self.qcounter[queue_name] % size
                 self._dump((handlers[idx],), contents)
                 self.qcounter[queue_name] += 1
-                    
+
     def _dump(self, handlers, contents):
         for handler in handlers:
             for content in contents:
@@ -423,11 +423,11 @@ class QueueControlHandler(cyclone.web.RequestHandler):
                 except Exception, e:
                     log.msg("ERROR: oper.queue_status('%s') failed: %s" % (q, e))
                     raise cyclone.web.HTTPError(503)
-    
+
             stats={"redis": repr(self.settings.db), "queues": aq, "count": len(aq)}
 
         self.finish("%s\r\n" % cyclone.escape.json_encode(stats))
-    
+
     @authorize("rest_producer")
     @defer.inlineCallbacks
     def post(self, queue):
@@ -464,7 +464,7 @@ class WebSocketQueueHandler(cyclone.web.WebSocketHandler):
                 self.settings.comet.presence.pop(queue_name)
         except:
             pass
-    
+
     def headersReceived(self, headers):
         # for authenticated websocket clientes, the browser must set a
         # cookie like this:
