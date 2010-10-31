@@ -3,3 +3,4 @@
 *~
 dropin.cache
 node/redis-node-client/*
+twistd.pid
