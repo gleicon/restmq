@@ -22,9 +22,9 @@ The collectd entrypoint does a vaery simple and basic validation of the data sen
 	...
 	<Plugin write_http>
 	        <URL "http://<collectd_restmq_server>/collectd/data">
-	               Format Commando
+	               Format Command
 	#               User "collectd"
-	#               Password "weCh3ik0"
+	#               Password "yerpass"
 	        </URL>
 	</Plugin>
 
