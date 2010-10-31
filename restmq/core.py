@@ -113,7 +113,7 @@ class RedisOperations:
             ckey = '%s:%s' % (QUEUE_STATUS, queue)
             res = yield self.redis.set(ckey, self.STARTQUEUE)
 
-        res = yield self.redis.push(lkey, key)
+        res = yield self.redis.lpush(lkey, key)
         defer.returnValue(key)
 
     @defer.inlineCallbacks
@@ -130,16 +130,15 @@ class RedisOperations:
         queue = self.normalize(queue)
         lkey = '%s:queue' % queue
         if softget == False:
-            okey = yield self.redis.pop(lkey)
+            okey = yield self.redis.rpop(lkey)
         else:
             okey = yield self.redis.lindex(lkey, "-1")
 
         if okey == None:
             defer.returnValue((None, None))
 
-        #val = yield self.redis.get(okey.encode('utf-8'))
         qpkey = "%s:queuepolicy" % queue
-        (policy, val) = yield self.redis.mget(qpkey, okey.encode('utf-8'))
+        (policy, val) = yield self.redis.mget([qpkey, okey.encode('utf-8')])
         c=0
         if softget == True:
             c = yield self.redis.incr('%s:refcount' % okey.encode('utf-8'))
@@ -174,7 +173,7 @@ class RedisOperations:
         queue = self.normalize(queue)
         lkey = '%s:queue' % queue
 
-        okey = yield self.redis.pop(lkey) # take from queue's list
+        okey = yield self.redis.rpop(lkey) # take from queue's list
         if okey == None:
             defer.returnValue((None, False))
 
@@ -225,7 +224,7 @@ class RedisOperations:
         lkey = '%s:queue' % queue
         multivalue = []
         for a in range (keyno):
-            nk = yield self.redis.pop(lkey)
+            nk = yield self.redis.rpop(lkey)
             if nk != None: 
                 t = nk.encode('utf-8')
             else:
