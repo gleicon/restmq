@@ -2,7 +2,7 @@
 # coding: utf-8
 
 import sys
-import cjson
+import simplejson
 from twisted.web import client
 from twisted.python import log
 from twisted.internet import reactor
@@ -10,7 +10,7 @@ from twisted.internet import reactor
 class CometClient(object):
     def write(self, content):
         try:
-            data = cjson.decode(content)
+            data = simplejson.loads(content)
             data = data.get('value')
         except Exception, e:
             log.err("cannot decode json: %s" % str(e))

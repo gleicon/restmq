@@ -24,7 +24,7 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
             queue = 'collectd_data'
             try:
                 value = value.splitlines()
-                value = list(map((lambda x: x.split(' ')[1:]),value))
+                value = self.collectd_plaintext_parser(value)
                 value = simplejson.dumps(value)
             except Exception, e:
                 log.msg("ERROR: %s" % e)
@@ -34,8 +34,9 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
             try:
                 value = value.splitlines()
                 event = value.pop()
-                value = list(map((lambda x: x.split(': ')),value[:-1]))
-                value.append(['Event',event])
+                value = value[:-1]
+                value = self.collectd_plaintext_parser(value)
+                value.append({'event_text': event})
                 value = simplejson.dumps(value)
             except Exception, e:
                 log.msg("ERROR: %s" % e)
@@ -55,6 +56,36 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
             web.CustomHandler(self, callback).finish(result)
         else:
             raise cyclone.web.HTTPError(400)
+
+    def collectd_plaintext_parser(self,lines):
+        event_protocol = {'Severity': None,
+                'Time': None,
+                'Host': None,
+                'Plugin': None,
+                'Type': None,
+                'TypeInstance': None,
+                'DataSource': None,
+                'CurrentValue': None,
+                'WarningMin': None,
+                'WarningMax': None,
+                'FailureMin': None,
+                'FailureMax': None,}
+        collectd_data = []
+        for line in lines:
+            line = line.split(' ')
+            if line[0] == 'PUTVAL':
+                (host,plugin_instance,type_instance) = line[1].split('/')
+                interval = line[2].split('=')[1]
+                value = line[3]
+                collectd_data.append({'host':host,
+                   'plugin_instance':plugin_instance,
+                   'type_instance':type_instance,
+                   'interval':interval,'value':value})
+            elif line[0].rstrip(':') in event_protocol:
+                key = line[0].rstrip(':').lower()
+                value = line[1]
+                collectd_data.append({key: value})
+        return collectd_data
 
 class Collectd(web.Application):
 
