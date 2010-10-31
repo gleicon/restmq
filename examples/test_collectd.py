@@ -25,5 +25,4 @@ if __name__ == "__main__":
     log.startLogging(sys.stdout)
     client.downloadPage("http://localhost:8888/c/collectd_data", CometClient())
     client.downloadPage("http://localhost:8888/c/collectd_event", CometClient())
-#    client.downloadPage("http://shrek.intranet/c/collectd_data", CometClient())
     reactor.run()
