@@ -1,0 +1,10 @@
+Collectd REST Endpoint
+======================
+
+Now RestMQ has a collectd rest endpoint to receive and queue messages from collectd and collectd_web
+There is an example at examples/test_collectd.py.
+Run with: collectd_restmq_server
+
+This is an specialization of RestMQ, that shows how flexible and easy the internals are. The main daemon is not restmq/web.py but restmq/collectd.py, which is using core and dispatch from RestMQ to implement only the necessary frontend using cyclone.
+
+Author: Roberto Gaiser (http://github.com/rgaiser)
