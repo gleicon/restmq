@@ -21,13 +21,20 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
         if value is None:
             raise cyclone.web.HTTPError(400)
         if queue == 'data':
+            content_type = self.request.headers.get('Content-Type')
             queue = 'collectd_data'
-            try:
-                value = value.splitlines()
-                value = self.collectd_plaintext_parser(value)
-                value = simplejson.dumps(value)
-            except Exception, e:
-                log.msg("ERROR: %s" % e)
+            if content_type == 'text/plain':
+                try:
+                    value = value.splitlines()
+                    value = self.collectd_plaintext_parser(value)
+                    value = simplejson.dumps(value)
+                except Exception, e:
+                    log.msg("ERROR: %s" % e)
+                    raise cyclone.web.HTTPError(503)
+            elif content_type == 'application/json':
+                pass
+            else:
+                log.msg("ERROR: Content-Type not expected %s" % content_type)
                 raise cyclone.web.HTTPError(503)
         elif queue == 'event':
             queue = 'collectd_event'
