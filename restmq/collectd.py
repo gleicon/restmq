@@ -55,7 +55,7 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
         try:
             result = yield self.settings.oper.queue_add(queue, value)
         except Exception, e:
-            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, val, e))
+            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, value, e))
             raise cyclone.web.HTTPError(503)
 
         if result:
