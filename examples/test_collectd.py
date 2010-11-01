@@ -16,7 +16,8 @@ class CometClient(object):
             log.err("cannot decode json: %s" % str(e))
             log.err("json is: %s" % content)
         else:
-            log.msg("got data: %s" % repr(data))
+#            log.msg("got data: %s" % repr(data))
+            log.msg("OK")
 
     def close(self):
         pass
