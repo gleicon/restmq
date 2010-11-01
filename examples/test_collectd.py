@@ -9,15 +9,15 @@ from twisted.internet import reactor
 
 class CometClient(object):
     def write(self, content):
-        try:
-            data = simplejson.loads(content)
-            data = data.get('value')
-        except Exception, e:
-            log.err("cannot decode json: %s" % str(e))
-            log.err("json is: %s" % content)
-        else:
-#            log.msg("got data: %s" % repr(data))
-            log.msg("OK")
+        for json in content.splitlines():
+            try:
+                    data = simplejson.loads(json)
+                    data = data.get('value')
+            except Exception, e:
+                log.err("cannot decode json: %s" % str(e))
+                log.err("json is: %s" % content)
+            else:
+                log.msg("got data ok: %s" % repr(data))
 
     def close(self):
         pass

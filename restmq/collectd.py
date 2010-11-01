@@ -32,7 +32,7 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
                     log.msg("ERROR: %s" % e)
                     raise cyclone.web.HTTPError(503)
             elif content_type == 'application/json':
-                value = simplejson.loads(value)
+                pass
             else:
                 log.msg("ERROR: Content-Type not expected %s" % content_type)
                 raise cyclone.web.HTTPError(503)
@@ -52,22 +52,14 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
             raise cyclone.web.HTTPError(400)
         callback = self.get_argument("callback", None)
 
-        result = []
-        for val in value:
-            val = simplejson.dumps(val)
-            try:
-                blah = yield self.settings.oper.queue_add(queue, val)
-                result.append(blah)
-            except Exception, e:
-                log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, val, e))
-                raise cyclone.web.HTTPError(503)
-            if blah:
-                self.settings.comet.queue.put(queue)
-        else:
-            raise cyclone.web.HTTPError(400)
+        try:
+            result = yield self.settings.oper.queue_add(queue, value)
+        except Exception, e:
+            log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, val, e))
+            raise cyclone.web.HTTPError(503)
 
-
-        if len(result) > 0:
+        if result:
+            self.settings.comet.queue.put(queue)
             web.CustomHandler(self, callback).finish(result)
         else:
             raise cyclone.web.HTTPError(400)
