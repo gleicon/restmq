@@ -21,11 +21,15 @@ REDIS_POOL=10
 PORT=8888
 LISTEN=127.0.0.1
 
+SCRIPT_FOLDER=$(readlink -f $0)
+SCRIPT_FOLDER=$(dirname $SCRIPT_FOLDER)
+
 # run in foreground, for testing
-exec twistd -n restmq $*
+cd $SCRIPT_FOLDER; exec twistd -n restmq $*
 
 # run in background, for production
 # export PYTHONPATH=`dirname $0`:$PYTHONPATH
-# exec twistd --pidfile=$PIDFILE --logfile=$LOGFILE --reactor=$REACTOR --uid=$USER --gid=$GROUP \
+# cd $SCRIPT_FOLDER; exec twistd --pidfile=$PIDFILE --logfile=$LOGFILE --reactor=$REACTOR --uid=$USER --gid=$GROUP \
 #    restmq --redis-host=$REDIS_HOST --redis-port=$REDIS_PORT --redis-pool=$REDIS_POOL \
 #    --port=$PORT --listen=$LISTEN
+
