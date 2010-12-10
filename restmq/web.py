@@ -1,5 +1,6 @@
 # coding: utf-8
 
+from os.path import dirname, abspath, join
 import types
 import base64
 import hashlib
@@ -509,7 +510,8 @@ class ACL(object):
 
     def parse(self, firstRun=False):
         try:
-            fp = open(self.filename)
+            FOLDER = abspath(dirname(__file__))
+            fp = open(join(FOLDER,'..' ,self.filename))
             md5 = hashlib.md5(fp.read()).hexdigest()
 
             if self.md5 is None:
@@ -639,3 +641,4 @@ class Application(cyclone.web.Application):
         }
 
         cyclone.web.Application.__init__(self, handlers, **settings)
+
