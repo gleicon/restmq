@@ -242,7 +242,7 @@ class RedisOperations:
             else:
                 v = yield self.redis.get(t) 
 
-            multivalue.append({'key': t, 'value':v.encode('utf-8')})
+            multivalue.append({'key': okey, 'value':v.encode('utf-8')})
         
         qpkey = "%s:queuepolicy" % queue
         policy = yield self.redis.get(qpkey)

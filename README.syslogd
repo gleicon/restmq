@@ -1,0 +1,18 @@
+RestMQ based syslogd daemon - Experimental protocol adapter for receiveing high volume syslog messages
+
+- TCP only
+- each posting host has a queue named syslogd:<ip>
+- run it in a standalone restmq, for N servers
+- consume your results of a restmq instance bound to the same redis database
+- default port 25000
+- performs lookup of severity and facility
+
+
+Use syslogd_restmq_server to run the frontend. 
+
+Bind on /c/syslogd:<hostname> for receiving thru the comet endpoint:
+
+- curl http://localhost:8888/c/syslogd:127.0.0.1
+
+
+Gleicon - 2010

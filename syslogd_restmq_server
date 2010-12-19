@@ -1,0 +1,32 @@
+#!/bin/bash
+# RestMQ
+
+# process' user and group
+USER=www-data
+GROUP=www-data
+
+# twisted reactor (select, poll, epoll, kqueue)
+REACTOR=epoll
+
+# pidfile and logfile
+PIDFILE=syslogd_restmq.pid
+LOGFILE=syslogd_restmq.log
+
+# redis host, port and connection pool size
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_POOL=10
+
+# server port, and interface to listen on
+PORT=25000
+#LISTEN=127.0.0.1
+LISTEN=10.0.1.4
+
+# run in foreground, for testing
+exec twistd --pidfile=$PIDFILE --logfile=$LOGFILE -n syslogd $* --listen=$LISTEN
+
+# run in background, for production
+# export PYTHONPATH=`dirname $0`:$PYTHONPATH
+# exec twistd --pidfile=$PIDFILE --logfile=$LOGFILE --reactor=$REACTOR --uid=$USER --gid=$GROUP \
+#    restmq --redis-host=$REDIS_HOST --redis-port=$REDIS_PORT --redis-pool=$REDIS_POOL \
+#    --port=$PORT --listen=$LISTEN

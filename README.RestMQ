@@ -27,7 +27,7 @@ There are a few http routes:
  /queue - entry point for the JSON protocol (see PROTOCOL). Point your browser to this location for some examples
  /c/queuename - entry point for a experimental COMET light consumer.
  /p/queuename - entry point for queue policy management - see README.qp for details
- /stats[queuename] - misc statuses and queue list - if queuename is given, shows len and status (paused|started)
+ /stats/[queuename] - misc statuses and queue list - if queuename is given, shows len and status (paused|started)
  /j/queuename - basic job checking, for those implementing job schedulers. Point your browser here to check data about a queue
  /control/queuename - start/stop consumers (as in pausing them)
 
