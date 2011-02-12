@@ -466,7 +466,7 @@ class WebSocketQueueHandler(cyclone.web.WebSocketHandler):
         except:
             pass
 
-    def headersReceived(self, headers):
+    def headersReceived(self):
         # for authenticated websocket clientes, the browser must set a
         # cookie like this:
         #   document.cookie = "auth=user:password"

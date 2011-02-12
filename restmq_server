@@ -25,6 +25,7 @@ SCRIPT_FOLDER=$(readlink -f $0)
 SCRIPT_FOLDER=$(dirname $SCRIPT_FOLDER)
 
 # run in foreground, for testing
+export PYTHONPATH=`dirname $0`:$PYTHONPATH
 cd $SCRIPT_FOLDER; exec twistd -n restmq $*
 
 # run in background, for production

@@ -1,0 +1,5 @@
+- Install cyclone (http://github.com/fiorix/cyclone)
+- run restmq_server (or collectd or syslogd, whichever you want)
+- mess with the startup script if you want it running in brackground
+- use supervisord to control start/stop (or god if you are into ruby)
+

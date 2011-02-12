@@ -22,6 +22,7 @@ PORT=8888
 LISTEN=127.0.0.1
 
 # run in foreground, for testing
+export PYTHONPATH=`dirname $0`:$PYTHONPATH
 exec twistd -n collectd $*
 
 # run in background, for production
