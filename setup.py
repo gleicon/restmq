@@ -64,10 +64,8 @@ def autosetup():
 
 
 if(__name__ == '__main__'):
-    print sys.argv[-1]
     if(sys.argv[-1] in pregenerate_cache_commands):
         dist_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
-        print dist_dir
         if(dist_dir not in sys.path):
             sys.path.insert(0, dist_dir)
 
