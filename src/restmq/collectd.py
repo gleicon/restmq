@@ -4,6 +4,8 @@ import os.path
 import cyclone.web
 import cyclone.redis
 
+import pkg_resources as pkg
+
 from twisted.python import log
 from twisted.internet import defer
 
@@ -122,15 +124,14 @@ class Collectd(web.Application):
             pool_size=redis_pool, db=redis_db)
 
         oper = core.RedisOperations(db)
-        cwd = os.path.dirname(__file__)
-
+        
         settings = {
             "db": db,
             "acl": acl,
             "oper": oper,
             "comet": web.CometDispatcher(oper),
-            "static_path": os.path.join(cwd, "static"),
-            "template_path": os.path.join(cwd, "templates"),
+            "static_path": pkg.resource_filename('restmq', 'static'),
+            "template_path": pkg.resource_filename('restmq', 'templates'),
         }
 
         cyclone.web.Application.__init__(self, handlers, **settings)

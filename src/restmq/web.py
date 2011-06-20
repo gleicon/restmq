@@ -15,6 +15,8 @@ from ConfigParser import ConfigParser
 from twisted.python import log
 from twisted.internet import task, defer, reactor
 
+import pkg_resources as pkg
+
 from restmq import core
 from restmq import dispatch
 
@@ -510,8 +512,12 @@ class ACL(object):
 
     def parse(self, firstRun=False):
         try:
-            FOLDER = abspath(dirname(__file__))
-            fp = open(join(FOLDER,'..' ,self.filename))
+            if(self.filename.startswith('/') or os.path.exists(self.filename)):
+                fp = open(self.filename)
+            else:
+                import pkg_resources as pkg
+                fp = pkg.resource_stream('restmq.assets', self.filename)
+            
             md5 = hashlib.md5(fp.read()).hexdigest()
 
             if self.md5 is None:
@@ -629,15 +635,14 @@ class Application(cyclone.web.Application):
             pool_size=redis_pool, db=redis_db)
 
         oper = core.RedisOperations(db)
-        cwd = os.path.dirname(__file__)
 
         settings = {
             "db": db,
             "acl": acl,
             "oper": oper,
             "comet": CometDispatcher(oper),
-            "static_path": os.path.join(cwd, "static"),
-            "template_path": os.path.join(cwd, "templates"),
+            "static_path": pkg.resource_filename('restmq', 'static'),
+            "template_path": pkg.resource_filename('restmq', 'templates'),
         }
 
         cyclone.web.Application.__init__(self, handlers, **settings)
