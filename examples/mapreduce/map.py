@@ -18,7 +18,6 @@ def wc(file):
     except Exception, e:
         print "Exception: %s" % e
 
-
     return len(words.split())
 
 def enqueue(filename, count):

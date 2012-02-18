@@ -30,11 +30,14 @@ class CommandDispatch:
         r={}
         try:
             p, e = yield self.ro.queue_get(jsonbody['queue'].encode("utf-8"), softget=True)
-            r['queue'] = jsonbody['queue']
-            r['value'] = e['value']
-            r['key'] = e['key']
-            r['count'] = e['count'] 
-            defer.returnValue(r)
+            if e is None:
+                defer.returnValue({'error': 'empty queue'})
+            else:
+                r['queue'] = jsonbody['queue']
+                r['value'] = e['value']
+                r['key'] = e['key']
+                r['count'] = e['count'] 
+                defer.returnValue(r)
         except Exception, e:
             defer.returnValue({"error":str(e)})
 

@@ -7,7 +7,8 @@ from twisted.internet import defer
 POLICY_BROADCAST = 1
 POLICY_ROUNDROBIN = 2
 QUEUE_STATUS = 'queuestat:'
-
+QUEUE_POLICY = "%s:queuepolicy"
+QUEUE_NAME = '%s:queue' 
 
 class RedisOperations:
     """
@@ -95,25 +96,18 @@ class RedisOperations:
         uuid = yield self.redis.incr("%s:UUID" % queue)
         key = '%s:%d' % (queue, uuid)
         res = yield self.redis.set(key, value)
-        
-        lkey = '%s:queue' % queue
-        
+
+        internal_queue_name = QUEUE_NAME % self.normalize(queue)
+
         if uuid == 1: # TODO: use ismember()
             # either by checking uuid or by ismember, this is where you must know if the queue is a new one.
             # add to queues set
-            res = yield self.redis.sadd(self.QUEUESET, lkey)
-            #print "set add: %s" % res
+            res = yield self.redis.sadd(self.QUEUESET, queue)
 
-            # add default queue policy, for now just enforce_take is set
-            #yield self.queue_policy_set(queue, "broadcast")
-            #qpkey = "%s:queuepolicy" % (queue)
-            #defaultqp = {'enforce_take':False, 'broadcast':True}
-            #res = yield self.redis.set(qpkey, simplejson.dumps(defaultqp).encode('utf-8'))
-            # queue is auto started for comet
             ckey = '%s:%s' % (QUEUE_STATUS, queue)
             res = yield self.redis.set(ckey, self.STARTQUEUE)
 
-        res = yield self.redis.lpush(lkey, key)
+        res = yield self.redis.lpush(internal_queue_name, key)
         defer.returnValue(key)
 
     @defer.inlineCallbacks
@@ -128,7 +122,7 @@ class RedisOperations:
         """
         policy = None
         queue = self.normalize(queue)
-        lkey = '%s:queue' % queue
+        lkey = QUEUE_NAME % self.normalize(queue)
         if softget == False:
             okey = yield self.redis.rpop(lkey)
         else:
@@ -137,7 +131,7 @@ class RedisOperations:
         if okey == None:
             defer.returnValue((None, None))
 
-        qpkey = "%s:queuepolicy" % queue
+        qpkey = QUEUE_POLICY % queue
         (policy, val) = yield self.redis.mget([qpkey, okey.encode('utf-8')])
         c=0
         if softget == True:
@@ -158,20 +152,20 @@ class RedisOperations:
 
     @defer.inlineCallbacks
     def queue_len(self, queue):
-        lkey = '%s:queue' % self.normalize(queue)
+        lkey = QUEUE_NAME % self.normalize(queue)
         ll = yield self.redis.llen(lkey)
-        defer.returnValue({'len': ll})
+        defer.returnValue(ll)
 
     @defer.inlineCallbacks
     def queue_all(self):
         sm = yield self.redis.smembers(self.QUEUESET)
         defer.returnValue({'queues': sm})
-    
+
     @defer.inlineCallbacks
     def queue_getdel(self, queue):
         policy = None
         queue = self.normalize(queue)
-        lkey = '%s:queue' % queue
+        lkey = QUEUE_NAME % self.normalize(queue)
 
         okey = yield self.redis.rpop(lkey) # take from queue's list
         if okey == None:
@@ -184,7 +178,7 @@ class RedisOperations:
         if ren == None:
             defer.returnValue((None,None))
 
-        qpkey = "%s:queuepolicy" % queue
+        qpkey = QUEUE_POLICY % queue
         (policy, val) = yield self.redis.mget(qpkey, nkey)
         delk = yield self.redis.delete(nkey)
         if delk == 0:
@@ -197,7 +191,7 @@ class RedisOperations:
         queue, policy = self.normalize(queue), self.normalize(policy)
         if policy in ("broadcast", "roundrobin"):
             policy_id = self.policies[policy]
-            qpkey = "%s:queuepolicy" % (queue)
+            qpkey = QUEUE_POLICY % queue
             res = yield self.redis.set(qpkey, policy_id)
             defer.returnValue({'queue': queue, 'response': res})
         else:
@@ -206,7 +200,7 @@ class RedisOperations:
     @defer.inlineCallbacks
     def queue_policy_get(self, queue):
         queue = self.normalize(queue)
-        qpkey = "%s:queuepolicy" % (queue)
+        qpkey = QUEUE_POLICY % queue
         val = yield self.redis.get(qpkey)
         defer.returnValue({'queue':queue, 'value': self.inverted_policies.get(val, "unknown")})
 
@@ -217,15 +211,15 @@ class RedisOperations:
             keyno could be a LLEN function over the queue list, but it lends almost the same effect.
             LRANGE could too fetch the latest keys, even if there was less than keyno keys. MGET could be used too.
             TODO: does DELete belongs here ?
-            return is a tuple (policy, returnvalues[])
+            returns a tuple (policy, returnvalues[])
         """
         policy = None
         queue = self.normalize(queue)
-        lkey = '%s:queue' % queue
+        lkey = QUEUE_NAME % self.normalize(queue)
         multivalue = []
-        for a in range (keyno):
+        for a in range(keyno):
             nk = yield self.redis.rpop(lkey)
-            if nk != None: 
+            if nk != None:
                 t = nk.encode('utf-8')
             else:
                 continue
@@ -240,11 +234,11 @@ class RedisOperations:
                 delk = yield self.redis.delete(t)
                 if delk == 0: continue
             else:
-                v = yield self.redis.get(t) 
+                v = yield self.redis.get(t)
 
             multivalue.append({'key': okey, 'value':v.encode('utf-8')})
-        
-        qpkey = "%s:queuepolicy" % queue
+
+        qpkey = QUEUE_POLICY % queue
         policy = yield self.redis.get(qpkey)
         defer.returnValue((policy or POLICY_BROADCAST, multivalue))
 
@@ -260,16 +254,16 @@ class RedisOperations:
             defer.returnValue({"error":str(e)})
 
     @defer.inlineCallbacks
-    def queue_last_items(self, queue, count=10): 
+    def queue_last_items(self, queue, count=10):
         """
             returns a list with the last count items in the queue
         """
         queue = self.normalize(queue)
-        lkey = '%s:queue' % queue
+        lkey = QUEUE_NAME % self.normalize(queue)
         multivalue = yield self.redis.lrange(lkey, 0, count-1)
 
         defer.returnValue( multivalue)
-    
+
     @defer.inlineCallbacks
     def queue_changestatus(self, queue, status):
         """Statuses: core.STOPQUEUE/core.STARTQUEUE"""
@@ -291,7 +285,7 @@ class RedisOperations:
         #TODO Must del all keys (or set expire)
         #it could rename the queue list, add to a deletion SET and use a task to clean it
 
-        lkey = '%s:queue' % queue
+        lkey = QUEUE_NAME % self.normalize(queue)
         res = yield self.redis.delete(lkey)
         defer.returnValue({'queue':queue, 'status':res})
 

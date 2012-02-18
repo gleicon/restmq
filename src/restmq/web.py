@@ -9,6 +9,8 @@ import functools
 import cyclone.web
 import cyclone.redis
 import cyclone.escape
+import cyclone.websocket
+
 from collections import defaultdict
 from ConfigParser import ConfigParser
 
@@ -51,7 +53,7 @@ class CustomHandler(object):
         if not isinstance(text, types.StringType):
             text = cyclone.escape.json_encode(text)
 
-        if isinstance(self.handler, cyclone.web.WebSocketHandler):
+        if isinstance(self.handler, cyclone.websocket.WebSocketHandler):
             self.handler.sendMessage(text)
         else:
             if self.json_callback:
@@ -132,6 +134,7 @@ class RestQueueHandler(cyclone.web.RequestHandler):
                 log.msg("ERROR: oper.queue_get('%s') failed: %s" % (queue, e))
                 raise cyclone.web.HTTPError(503)
 
+            if value is None: raise cyclone.web.HTTPError(204)
             CustomHandler(self, callback).finish(value)
         else:
             try:
@@ -305,8 +308,9 @@ class StatusHandler(cyclone.web.RequestHandler):
     @authorize("rest_consumer")
     @defer.inlineCallbacks
     def get(self, queue):
-        # application/json or text/json ?
-        self.set_header("Content-Type", "text/plain")
+        self.set_header("Content-Type", "application/json")
+        jsoncallback = self.get_argument("callback", None)
+        res = {}
 
         if queue is None or len(queue) < 1:
             try:
@@ -314,11 +318,23 @@ class StatusHandler(cyclone.web.RequestHandler):
             except Exception, e:
                 log.msg("ERROR: oper.queue_all() failed: %s" % e)
                 raise cyclone.web.HTTPError(503)
+            ql = list(allqueues["queues"]) 
+            res["queues"]={}
+            for q in ql:
+                qn = str(q)
+                res["queues"][qn]={}
+                res["queues"][qn]["name"]=qn
+                res["queues"][qn]['len'] = yield self.settings.oper.queue_len(q)
+                st = yield self.settings.oper.queue_status(q) 
+                res["queues"][qn]['status'] = st["status"] if st['status'] else ""
+                pl = yield self.settings.oper.queue_policy_get(q) 
+                res["queues"][qn]['policy'] = pl['value']  if pl['value'] else ""
 
-            self.finish("%s\r\n" % cyclone.escape.json_encode({
-                "redis": repr(self.settings.db),
-                "queues": list(allqueues["queues"]),
-                "count": len(allqueues["queues"])}))
+            res['redis'] = repr(self.settings.db)
+            res['count'] = len(ql)
+            if jsoncallback is not None: res = "%s(%s)" % (jsoncallback, res)
+            self.finish(res)
+
         else:
             try:
                 qlen = yield self.settings.oper.queue_len(queue)
@@ -326,9 +342,12 @@ class StatusHandler(cyclone.web.RequestHandler):
                 log.msg("ERROR: oper.queue_len('%s') failed: %s" % (queue, e))
                 raise cyclone.web.HTTPError(503)
 
-            self.finish("%s\r\n" % cyclone.escape.json_encode({
+            resp = "%s" % cyclone.escape.json_encode({
                 "redis": repr(self.settings.db),
-                "queue": queue, "len": qlen}))
+                "queue": queue, "len": qlen})
+            
+            if jsoncallback is not None: resp = "%s(%s)" % (jsoncallback, resp)
+            self.finish(resp)
 
 
 class CometDispatcher(object):
@@ -456,7 +475,7 @@ class QueueControlHandler(cyclone.web.RequestHandler):
         self.finish("%s\r\n" % cyclone.escape.json_encode({'stat':qstat}))
 
 
-class WebSocketQueueHandler(cyclone.web.WebSocketHandler):
+class WebSocketQueueHandler(cyclone.websocket.WebSocketHandler):
     """
         Guess what, I had a fever, and the only prescription is websocket
     """
