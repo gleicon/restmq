@@ -4,3 +4,7 @@
 dropin.cache
 node/redis-node-client/*
 twistd.pid
+*.pid
+build/
+dist/
+*.log

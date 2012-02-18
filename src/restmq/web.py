@@ -419,7 +419,7 @@ class QueueControlHandler(cyclone.web.RequestHandler):
     @authorize("rest_consumer")
     @defer.inlineCallbacks
     def get(self, queue):
-        self.set_header("Content-Type", "text/plain")
+        self.set_header("Content-Type", "application/json")
 
         stats={}
         if queue:
@@ -454,6 +454,7 @@ class QueueControlHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     def post(self, queue):
         status = self.get_argument("status", None)
+        jsoncallback = self.get_argument("callback", None)
 
         if status == "start":
             try:
@@ -472,7 +473,10 @@ class QueueControlHandler(cyclone.web.RequestHandler):
         else:
             qstat = "invalid status: %s" % status
 
-        self.finish("%s\r\n" % cyclone.escape.json_encode({'stat':qstat}))
+        resp = "%s" % cyclone.escape.json_encode({"stat": qstat })
+
+        if jsoncallback is not None: resp = "%s(%s)" % (jsoncallback, resp)
+        self.finish("%s\r\n" % resp)
 
 
 class WebSocketQueueHandler(cyclone.websocket.WebSocketHandler):
