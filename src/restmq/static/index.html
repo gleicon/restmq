@@ -71,10 +71,12 @@
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="js/jquery-1.7.1.min.js"></script>
     <script>
-        $(function(){
+        function update_stats() {
+            $('#queue-count').empty();
+            $('#redis-pool').empty();
+            $('#queue-list').empty();
             $.getJSON('http://localhost:8888/stats/?callback=?', function(data) {
                 $('#redis-pool').append("Redis connection pool: "+data.redis);
-                $('#queue-list').empty();
                 $('#queue-count').text("Queues: "+ data.count);
                 $.each(data.queues, function(q) {
                     console.log(data);
@@ -88,6 +90,10 @@
                     "</div>");
                 });
             });
+            setTimeout(update_stats, 10000);
+        }
+        $(function(){
+            update_stats();
         });
     </script>
   </body>

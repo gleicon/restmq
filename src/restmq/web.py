@@ -78,7 +78,7 @@ class IndexHandler(cyclone.web.RequestHandler):
         callback = self.get_argument("callback", None)
 
         if queue is None:
-            self.render("basic_routes.html")
+            self.render("index.html")
             defer.returnValue(None)
 
         try:
