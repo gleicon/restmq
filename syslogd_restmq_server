@@ -24,7 +24,7 @@ LISTEN=192.168.0.179
 
 # run in foreground, for testing
 export PYTHONPATH=`dirname $0`:$PYTHONPATH
-exec twistd --pidfile=$PIDFILE --logfile=$LOGFILE -n syslogd $* --listen=$LISTEN
+exec twistd -n syslogd $*
 
 # run in background, for production
 # export PYTHONPATH=`dirname $0`:$PYTHONPATH

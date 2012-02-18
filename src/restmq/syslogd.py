@@ -52,9 +52,9 @@ class SyslogdFactory(ServerFactory):
 
     def __init__ (self, redis_host, redis_port, redis_pool, redis_db ):
 
-        db = cyclone.redis.lazyRedisConnectionPool(
+        db = cyclone.redis.lazyConnectionPool(
             redis_host, redis_port,
-            pool_size=redis_pool, db=redis_db)
+            poolsize=redis_pool, dbid=redis_db)
 
         self.oper = core.RedisOperations(db)
 

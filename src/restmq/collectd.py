@@ -119,9 +119,9 @@ class Collectd(web.Application):
             log.msg("ERROR: Cannot load ACL file: %s" % e)
             raise RuntimeError("Cannot load ACL file: %s" % e)
 
-        db = cyclone.redis.lazyRedisConnectionPool(
+        db = cyclone.redis.lazyConnectionPool(
             redis_host, redis_port,
-            pool_size=redis_pool, db=redis_db)
+            poolsize=redis_pool, dbid=redis_db)
 
         oper = core.RedisOperations(db)
         
