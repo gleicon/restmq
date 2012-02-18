@@ -20,6 +20,12 @@ Redis is more than just a key/value db, and its data types provided support for 
 
 Queues are created on the fly, when a message is sent to them. They are simple to use as a curl request can be.
 
+Install
+=======
+
+$ python setup.py install
+run with sh restmq_server 
+
 Queue Policy
 ============
 
@@ -187,3 +193,5 @@ Thanks to (in no particular order):
 
 - Salvatore Sanfilippo for redis and for NoSQL patterns discussion.
 - Alexandre Fiori for the redis client enhancement and patches.
+- Roberto Gaiser for the collectd daemon
+- <put your name here if you happen to send a patch> 
