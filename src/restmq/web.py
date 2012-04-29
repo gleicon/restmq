@@ -74,12 +74,14 @@ class IndexHandler(cyclone.web.RequestHandler):
     @authorize("rest_consumer")
     @defer.inlineCallbacks
     def get(self):
-        queue = self.get_argument("queue", None)
-        callback = self.get_argument("callback", None)
-
-        if queue is None:
-            self.render("index.html")
-            defer.returnValue(None)
+        try:
+            queue = self.get_argument("queue", None)
+            callback = self.get_argument("callback", None)
+            if queue is None:
+                self.redirect("/static/index.html")
+                defer.returnValue(None)
+        except Exception, e:
+            print e
 
         try:
             policy, value = yield self.settings.oper.queue_get(queue)
