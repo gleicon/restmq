@@ -8,3 +8,4 @@ twistd.pid
 build/
 dist/
 *.log
+src/RestMQ.egg-info/
