@@ -8,6 +8,7 @@ setup(
     package_dir={
         '': 'src',
         },
+    
     install_requires=[
         'twisted',
         'simplejson',
@@ -19,3 +20,4 @@ setup(
     keywords="rest json message queue",
     url="https://github.com/gleicon/restmq",
     )
+
