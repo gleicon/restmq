@@ -75,6 +75,7 @@ if(__name__ == '__main__'):
 
     dist = autosetup()
     if(sys.argv[-1] in postgenerate_cache_commands):
+        sys.path.append('src')
         subprocess.Popen(
             [sys.executable, '-c', 'from restmq import setup_extras; setup_extras.regeneratePluginCache(); print "Regenerating plugin cache..."'],
         ).wait()
