@@ -193,16 +193,17 @@ class RedisOperations:
             policy_id = self.policies[policy]
             qpkey = QUEUE_POLICY % queue
             res = yield self.redis.set(qpkey, policy_id)
+            defer.returnValue(res)
             defer.returnValue({'queue': queue, 'response': res})
         else:
-            defer.returnValue({'queue': queue, 'response': ValueError("invalid policy: %s" % repr(policy))})
+            defer.returnValue(None)
 
     @defer.inlineCallbacks
     def queue_policy_get(self, queue):
         queue = self.normalize(queue)
         qpkey = QUEUE_POLICY % queue
         val = yield self.redis.get(qpkey)
-        defer.returnValue({'queue':queue, 'value': self.inverted_policies.get(val, "unknown")})
+        defer.returnValue(val)
 
     @defer.inlineCallbacks
     def queue_tail(self, queue, keyno=10, delete_obj=False): 
@@ -293,3 +294,24 @@ class RedisOperations:
     def pubsub(self, queue_name, content):
         key = "%s:%s" % (queue_name, self.PUBSUB_SUFIX)
         r = yield self.redis.publish(key, content)
+
+
+
+    @defer.inlineCallbacks
+    def queue_block_multi_get(self, queue_list): 
+        """
+            waits on a list of queues, get back with the first queue that
+            received data.
+            this makes the redis locallity very important as if there are other
+            instances doing the same the policy wont be respected.
+        """
+        ql = [QUEUE_NAME % self.normalize(queue) for queue in queue_list]
+        res = redis_cli.brpop(queues) 
+        if res is not None:
+            q = self.normalize(res[1])                                            
+            qpkey = QUEUE_POLICY % q
+            (p, v) = yield self.redis.mget([qpkey, q])
+            defer.returnValue(p, {'key':q, 'value':v})
+        else:
+            defer.returnValue(None)
+

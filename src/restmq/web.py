@@ -277,8 +277,8 @@ class PolicyQueueHandler(cyclone.web.RequestHandler):
         except Exception, e:
             log.msg("ERROR: oper.queue_policy_get('%s') failed: %s" % (queue, e))
             raise cyclone.web.HTTPError(503)
-
-        CustomHandler(self, callback).finish(policy)
+        r = ({'queue':queue, 'value': self.inverted_policies.get(policy, "unknown")}
+        CustomHandler(self, callback).finish(r)
 
     @authorize("rest_producer")
     @defer.inlineCallbacks
@@ -332,8 +332,8 @@ class StatusHandler(cyclone.web.RequestHandler):
                 res["queues"][qn]['len'] = yield self.settings.oper.queue_len(q)
                 st = yield self.settings.oper.queue_status(q) 
                 res["queues"][qn]['status'] = st["status"] if st['status'] else ""
-                pl = yield self.settings.oper.queue_policy_get(q) 
-                res["queues"][qn]['policy'] = pl['value']  if pl['value'] else ""
+                pl = yield self.settings.oper.queue_policy_get(q)
+                res["queues"][qn]['policy'] = pl if pl else ""
 
             res['redis'] = repr(self.settings.db)
             res['count'] = len(ql)
@@ -373,6 +373,14 @@ class CometDispatcher(object):
     def _auto_dispatch(self):
         for queue_name, handlers in self.presence.items():
             self.dispatch(queue_name, handlers)
+    
+    @defer.inlineCallbacks
+    def _block_listen_queues(self):
+        while True:
+            ql = [q for q in self.presence.keys() if len(self.presence[q]) > 0]
+            queue, policy, value = yield self.oper.queue_block_multi_get(ql)
+            if value is not None and queue is not None:
+                self._dump(self.presence[queue], value, policy)
 
     def _counters_cleanup(self):
         keys = self.qcounter.keys()
@@ -393,22 +401,27 @@ class CometDispatcher(object):
 
         handlers = handlers or self.presence.get(queue_name)
         if handlers:
-            size = len(handlers)
             try:
                 policy, contents = yield self.oper.queue_tail(queue_name, delete_obj = self.delete_objects)
                 assert policy and contents and isinstance(contents, types.ListType)
             except:
                 defer.returnValue(None)
+            
+            self._dump(handlers, contents, policy)
 
-            if policy == core.POLICY_BROADCAST:
-                self._dump(handlers, contents)
+    def _dump(self, handlers, contents, policy = None):
+        if policy is None:
+            policy == core.POLICY_BROADCAST:
+        size = len(handlers)
+        if policy == core.POLICY_BROADCAST:
+            self._send(handlers, contents)
 
-            elif policy == core.POLICY_ROUNDROBIN:
-                idx = self.qcounter[queue_name] % size
-                self._dump((handlers[idx],), contents)
-                self.qcounter[queue_name] += 1
+        elif policy == core.POLICY_ROUNDROBIN:
+            idx = self.qcounter[queue_name] % size
+            self._send((handlers[idx],), contents)
+            self.qcounter[queue_name] += 1
 
-    def _dump(self, handlers, contents):
+    def _send(self, handlers, contents): 
         for handler in handlers:
             for content in contents:
                 try:
