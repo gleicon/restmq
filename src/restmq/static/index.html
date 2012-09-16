@@ -53,7 +53,7 @@
         <div id="queues"></div>
             <h4 id="queue-count">Queues: </h4>
         </div>
-        <div class="span8" id='queue-list'> 
+        <div class="span8" id='queue-list'>
             <br><br>
             <div class="well">
                 <p id="queue-name"></p>
@@ -73,25 +73,25 @@
     <script>
         function start_queue(q) {
             console.log("Start "+q);
-            $.post("http://localhost:8888/control/"+q+"?callback=?", {status: "start"}, function(r){console.log(r)});
+            $.post("/control/"+q+"?callback=?", {status: "start"}, function(r){console.log(r)});
         }
 
         function stop_queue(q) {
             console.log("Stop "+q);
-            $.post("http://localhost:8888/control/"+q+"?callback=?", {status: "stop"}, function(r){console.log(r)});
+            $.post("/control/"+q+"?callback=?", {status: "stop"}, function(r){console.log(r)});
         }
 
         function update_stats() {
             $('#queue-count').empty();
             $('#queue-list').empty();
-            $.getJSON('http://localhost:8888/stats/?callback=?', function(data) {
+            $.getJSON('/stats/?callback=?', function(data) {
                 $('#redis-pool').text("Redis connection pool: "+data.redis);
                 $('#queue-count').text("Queues: "+ data.count);
                 $.each(data.queues, function(q) {
                     qname = data.queues[q].name;
                     $('#queue-list').append("<div class=\"well\">"+
                         "<p><b>Queue Name:</b> "+data.queues[q].name+"<br>"+
-                        "<b>Length:</b> "+data.queues[q].len+"<br>"+ 
+                        "<b>Length:</b> "+data.queues[q].len+"<br>"+
                         "<b>Status:</b> "+data.queues[q].status+"<br>"+
                         "<b>Policy:</b> "+data.queues[q].policy+"</p>"+
                         "<i class=\"icon-play\" onclick=start_queue(\""+qname+"\")></i>"+

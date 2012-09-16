@@ -100,12 +100,14 @@ class IndexHandler(cyclone.web.RequestHandler):
         queue = self.get_argument("queue")
         msg = self.get_argument("msg", None)
         value = self.get_argument("value", None)
+        ttl = self.get_argument("ttl", None)
+
         if msg is None and value is None:
             raise cyclone.web.HTTPError(400)
         callback = self.get_argument("callback", None)
 
         try:
-            result = yield self.settings.oper.queue_add(queue, value)
+            result = yield self.settings.oper.queue_add(queue, value, ttl=ttl)
         except Exception, e:
             log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, value, e))
             raise cyclone.web.HTTPError(503)
@@ -152,12 +154,13 @@ class RestQueueHandler(cyclone.web.RequestHandler):
     def post(self, queue):
         msg = self.get_argument("msg", None)
         value = self.get_argument("value", None)
+        ttl = self.get_argument("ttl", None)
         if msg is None and value is None:
             raise cyclone.web.HTTPError(400)
         callback = self.get_argument("callback", None)
 
         try:
-            result = yield self.settings.oper.queue_add(queue, msg or value)
+            result = yield self.settings.oper.queue_add(queue, msg or value, ttl=ttl)
         except Exception, e:
             log.msg("ERROR: oper.queue_add('%s', '%s') failed: %s" % (queue, msg or value, e))
             raise cyclone.web.HTTPError(503)
