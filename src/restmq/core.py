@@ -90,15 +90,15 @@ class RedisOperations:
         defer.returnValue(res)
 
     @defer.inlineCallbacks
-    def queue_add(self, queue, value):
+    def queue_add(self, queue, value, ttl=None):
         queue, value = self.normalize(queue), self.normalize(value)
 
         uuid = yield self.redis.incr("%s:UUID" % queue)
         key = '%s:%d' % (queue, uuid)
         res = yield self.redis.set(key, value)
-
+        if ttl is not None:
+            res = yield self.redis.expire(key, ttl)
         internal_queue_name = QUEUE_NAME % self.normalize(queue)
-
         if uuid == 1: # TODO: use ismember()
             # either by checking uuid or by ismember, this is where you must know if the queue is a new one.
             # add to queues set
