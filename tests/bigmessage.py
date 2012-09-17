@@ -4,7 +4,7 @@
 # queue, check size both on restmq and redis
 # make sure the queue is empty
 
-import sys, simplejson
+import sys, json
 import urllib, urllib2
 import difflib
 import redis
@@ -28,7 +28,7 @@ def read_msg(file):
 def enqueue(filename, content):
     try:
         msg={'filename': filename, 'len':len(content), 'content':content}
-        data = urllib.urlencode({'queue':QUEUENAME, 'value':simplejson.dumps(msg)})
+        data = urllib.urlencode({'queue':QUEUENAME, 'value':json.dumps(msg)})
         r = urllib2.Request('http://localhost:8888/', data)
         f = urllib2.urlopen(r)
         data = f.read()
@@ -50,8 +50,8 @@ def dequeue():
         f.close()
     except urllib2.URLError, e:
         print e
-    data_dic = simplejson.loads(data)
-    dd2 = simplejson.loads(data_dic['value'])
+    data_dic = json.loads(data)
+    dd2 = json.loads(data_dic['value'])
     content = dd2['content']
     ck_c = str_checksum(content)
     l_c = len(content)
@@ -61,7 +61,7 @@ def dequeue():
 def check_redis(redis_key):
     r = redis.Redis(host='localhost', port=6379, db=0)
     meh = r.get(redis_key)
-    data_dic = simplejson.loads(meh)
+    data_dic = json.loads(meh)
     content = data_dic['content']
     ck_c = str_checksum(content)
     l_c = len(content)

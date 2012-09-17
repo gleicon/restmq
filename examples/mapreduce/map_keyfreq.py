@@ -5,7 +5,7 @@
 # output: {'filename':sys.argv[1], 'count': No of words}
 #
 
-import sys, simplejson
+import sys, json
 import urllib, urllib2
 
 QUEUENAME = 'reducer'
@@ -32,7 +32,7 @@ def wordfreq(file):
 def enqueue(filename, count, wf):
     try:
         msg={"filename": filename, "count":count, "wordfreqlist":wf}
-        data = urllib.urlencode({'queue':QUEUENAME, 'value':simplejson.dumps(msg)})
+        data = urllib.urlencode({'queue':QUEUENAME, 'value':json.dumps(msg)})
         r = urllib2.Request('http://localhost:8888/', data)
         f = urllib2.urlopen(r)
         data = f.read()

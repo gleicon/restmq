@@ -1,7 +1,7 @@
 # simple twitter producer for restmq. point your browser to http://localhost:8888/c/twitter and 
 # execute it with python twitter_trends.py 
 
-import simplejson
+import json
 import pickle, re, os, urllib, urllib2
 
 
@@ -18,7 +18,7 @@ def get_url(url):
 def post_in_queue(subject, author, text):
     try:
         msg={'subject': subject, 'author':author, 'text':text}
-        data = urllib.urlencode({'queue':'twitter', 'value':simplejson.dumps(msg)})
+        data = urllib.urlencode({'queue':'twitter', 'value':json.dumps(msg)})
         r = urllib2.Request('http://localhost:8888/', data)
         f = urllib2.urlopen(r)
         data = f.read()
@@ -37,7 +37,7 @@ else:
 
 
 
-trends_current = simplejson.loads(get_url("http://search.twitter.com/trends/current.json"))
+trends_current = json.loads(get_url("http://search.twitter.com/trends/current.json"))
 c = trends_current["trends"]
 
 for a in c[c.keys()[0]]:
@@ -47,7 +47,7 @@ for a in c[c.keys()[0]]:
         url = "http://search.twitter.com/search.json?q=%s&since_id=%s" % (urllib.quote_plus(a['query']), last_topic_ids[a['query']])
     print "--------------------------------------"
     print "%s: %s" % (a['name'], url)
-    statuses = simplejson.loads(get_url(url))
+    statuses = json.loads(get_url(url))
     for s in statuses['results']:
         print repr(s)
         print "%s: %s" %(s['from_user'], s['text'])

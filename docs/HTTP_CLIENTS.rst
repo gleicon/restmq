@@ -40,7 +40,7 @@ For urllib usually we construct the request like this:
     def post_in_queue(subject, author, text):                                       
         try:                                                                        
             msg={'subject': subject, 'author':author, 'text':text}                  
-            *data = urllib.urlencode({'queue':'twitter', 'value':simplejson.dumps(msg)})*
+            *data = urllib.urlencode({'queue':'twitter', 'value':json.dumps(msg)})*
             r = urllib2.Request('http://localhost:8888/', data)
             f = urllib2.urlopen(r)                                                  
             data = f.read()                                                         

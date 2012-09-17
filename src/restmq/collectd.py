@@ -11,7 +11,7 @@ from twisted.internet import defer
 
 from restmq import core
 
-import simplejson
+import json
 import web
 
 class CollectdRestQueueHandler(web.RestQueueHandler):
@@ -29,7 +29,7 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
                 try:
                     value = value.splitlines()
                     value = self.collectd_plaintext_parser(value)
-                    value = simplejson.dumps(value)
+                    value = json.dumps(value)
                 except Exception, e:
                     log.msg("ERROR: %s" % e)
                     raise cyclone.web.HTTPError(503)
@@ -46,7 +46,7 @@ class CollectdRestQueueHandler(web.RestQueueHandler):
                 value = value[:-1]
                 value = self.collectd_plaintext_parser(value)
                 value.append({'event_text': event})
-                value = simplejson.dumps(value)
+                value = json.dumps(value)
             except Exception, e:
                 log.msg("ERROR: %s" % e)
                 raise cyclone.web.HTTPError(503)

@@ -8,14 +8,14 @@ scriptdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append("%s/lib" % scriptdir)
 
 import urllib, urllib2
-import simplejson
+import json
 import myconfig
 import simplemonitor
 
 
 def post_data(host, port, queuename):
 	try:
-		params = urllib.urlencode({"queue":queuename, "value":simplejson.dumps(simplemonitor.get_all_values())})
+		params = urllib.urlencode({"queue":queuename, "value":json.dumps(simplemonitor.get_all_values())})
 
 		request = urllib2.Request("http://%s:%s" % (host, str(port)), params)
 		f = urllib2.urlopen(request)

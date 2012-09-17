@@ -2,7 +2,7 @@
 # coding: utf-8
 
 import sys
-import simplejson
+import json
 from twisted.web import client
 from twisted.python import log
 from twisted.internet import reactor
@@ -22,14 +22,14 @@ class CometClient(object):
 			data=[]
 			for line in c:
 				if len(line) < 2: continue
-				data.append(simplejson.loads(line))
+				data.append(json.loads(line))
         except Exception, e:
             log.err("cannot decode json: %s" % str(e))
             log.err("json is: %s" % content)
         else:
             jobs=[]
             for v in data:
-                    val=simplejson.loads(v['value'])
+                    val=json.loads(v['value'])
                     jobs.append(v['key'])
                     log.msg("file: %s count: %s" % (val['filename'], val['count']))
                     self.count=self.count+val['count']

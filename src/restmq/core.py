@@ -1,7 +1,7 @@
 # coding: utf-8
 
 import types
-import simplejson
+import cyclone.escape
 from twisted.internet import defer
 import itertools
 
@@ -69,7 +69,7 @@ class RedisOperations:
         if authval == None:
             defer.returnValue(False)
         try:
-            adata = simplejson.loads(authval)
+            adata = cyclone.escape.json_decode(authval)
         except Exception, e:
             defer.returnValue(None)
         if queue in adata['queues']:
@@ -87,7 +87,7 @@ class RedisOperations:
         avkey = self.normalize(avkey)
         authrecord = {'queues': queues, 'privs':privs}
 
-        res = yield self.redis.set(avkey, simplejson.dumps(authrecord))
+        res = yield self.redis.set(avkey, cyclone.escape.json_encode(authrecord))
         defer.returnValue(res)
 
     @defer.inlineCallbacks

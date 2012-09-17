@@ -3,7 +3,6 @@ cyclone==1.0-rc12
 distribute==0.6.28
 pyOpenSSL==0.13
 pycrypto==2.6
-simplejson==2.6.1
 ssh==1.7.14
 wsgiref==0.1.2
 zope.interface==4.0.1

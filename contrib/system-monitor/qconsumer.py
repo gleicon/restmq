@@ -8,7 +8,7 @@ scriptdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append("%s/lib" % scriptdir)
 
 import sys
-import simplejson
+import json
 import myconfig
 import dispatcher
 from twisted.web import client
@@ -24,8 +24,8 @@ class CometClient(object):
 
 			for line in content.split("\r\n"):
 				if line:
-					packet = simplejson.loads(line)
-					data.append( {"key": packet["key"], "value": simplejson.loads(packet["value"])} )
+					packet = json.loads(line)
+					data.append( {"key": packet["key"], "value": json.loads(packet["value"])} )
 
 		except Exception, err:
 			log.err("Cannot decode JSON: %s" % str(err))

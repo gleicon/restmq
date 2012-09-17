@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import simplejson
+import json
 import cyclone.redis
 from restmq import core
 from optparse import OptionParser
@@ -26,14 +26,14 @@ def test_operations(opt, args):
 
     if opt.producer == True:
         print "Running as producer"
-        uuid = yield ro.queue_add(QUEUENAME, simplejson.dumps({'value':'a value'}))
+        uuid = yield ro.queue_add(QUEUENAME, json.dumps({'value':'a value'}))
         print 'uuid: %s' % uuid
 
     if opt.consumer == True:
     	print "Running as consumer"
         (policy, ret) = yield ro.queue_get( QUEUENAME)
         if ret != None:
-            print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
+            print "value: %s" % ret['value'] #json.loads(ret['value'])
             print "policy: %s" % policy
         else:
             print 'empty queue'
@@ -49,7 +49,7 @@ def test_operations(opt, args):
     	print "Running as consumer"
         (policy, ret) = yield ro.queue_get( QUEUENAME, softget=True)
         if ret != None:
-            print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
+            print "value: %s" % ret['value'] #json.loads(ret['value'])
             print "policy: %s" % policy
         else:
             print 'empty queue'
@@ -60,7 +60,7 @@ def test_operations(opt, args):
         print repr(ret)
 
         if ret != None:
-            print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
+            print "value: %s" % ret['value'] #json.loads(ret['value'])
         else:
             print 'empty queue policy'
 
@@ -73,7 +73,7 @@ def test_operations(opt, args):
     	print "Running as getdel consumer"
         (policy, ret) = yield ro.queue_getdel(QUEUENAME)
         if ret != None and ret != False:
-            print "value: %s" % ret['value'] #simplejson.loads(ret['value'])
+            print "value: %s" % ret['value'] #json.loads(ret['value'])
             print "policy: %s" % policy
         else:
             print 'empty queue'
@@ -82,7 +82,7 @@ def test_operations(opt, args):
     	print "Running as tail multiget"
         (policy, ret) = yield ro.queue_tail(QUEUENAME)
         if ret != None and ret != False:
-            print "value: %s" % repr(ret) #simplejson.loads(ret['value'])
+            print "value: %s" % repr(ret) #json.loads(ret['value'])
             print "policy: %s" % policy
         else:
             print 'empty queue'
@@ -91,7 +91,7 @@ def test_operations(opt, args):
     	print "Running as count object"
         ret = yield ro.queue_count_elements(QUEUENAME)
         if ret != None and ret != False:
-            print "value: %s" % repr(ret) #simplejson.loads(ret['value'])
+            print "value: %s" % repr(ret) #json.loads(ret['value'])
         else:
             print 'empty queue'
 
@@ -99,7 +99,7 @@ def test_operations(opt, args):
     	print "Running as count object"
         ret = yield ro.queue_last_items(QUEUENAME)
         if ret != None and ret != False:
-            print "value: %s" % repr(ret) #simplejson.loads(ret['value'])
+            print "value: %s" % repr(ret) #json.loads(ret['value'])
         else:
             print 'empty queue'
 
