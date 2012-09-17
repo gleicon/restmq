@@ -324,10 +324,3 @@ class RedisOperations:
         qs = [True if r != filter_by else False for r in res]
         r = itertools.compress(ql, qs)
         defer.returnValue(list(r))
-
-
-
-
-
-
-
