@@ -3,6 +3,7 @@
 import types
 import simplejson
 from twisted.internet import defer
+import itertools
 
 POLICY_BROADCAST = 1
 POLICY_ROUNDROBIN = 2
@@ -306,12 +307,27 @@ class RedisOperations:
             instances doing the same the policy wont be respected.
         """
         ql = [QUEUE_NAME % self.normalize(queue) for queue in queue_list]
-        res = redis_cli.brpop(queues) 
+        res = yield self.redis.brpop(ql) 
         if res is not None:
             q = self.normalize(res[1])                                            
             qpkey = QUEUE_POLICY % q
             (p, v) = yield self.redis.mget([qpkey, q])
-            defer.returnValue(p, {'key':q, 'value':v})
+            defer.returnValue((q, p, {'key':q, 'value':v}))
         else:
             defer.returnValue(None)
+    
+    @defer.inlineCallbacks
+    def multi_queue_by_status(self, queue_list, filter_by=None):
+        if filter_by is None: filter_by = self.STARTQUEUE
+        ql = ["%s:%s" % (QUEUE_STATUS, self.normalize(queue)) for queue in queue_list]
+        res = yield self.redis.mget(ql)
+        qs = [True if r != filter_by else False for r in res]
+        r = itertools.compress(ql, qs)
+        defer.returnValue(list(r))
+
+
+
+
+
+
 
