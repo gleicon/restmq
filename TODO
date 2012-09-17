@@ -1,3 +1,11 @@
+code cleanup, isolate core to move between redis and zmq
+protocols:
+    sqs endpoint
+    memcached endpoint
+    nats endpoint
+job scheduling with mure
+
+
 engine.py:    - TODO: the object may have an expiration instead of straight deletion
 engine.py:    - TODO: RPOPLPUSH can be used to put it in another queue as a backlog
 engine.py:    - TODO: persistence management (on/off/status)
