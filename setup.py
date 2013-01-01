@@ -8,7 +8,10 @@ setup(
     package_dir={
         '': 'src',
         },
-    
+
+    package_data    = {'': ['*.conf', '*.html', '*.js', '*.sh']},
+    include_package_data = True,
+
     install_requires=[
         'twisted',
         'simplejson',

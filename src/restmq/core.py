@@ -204,7 +204,8 @@ class RedisOperations:
         queue = self.normalize(queue)
         qpkey = QUEUE_POLICY % queue
         val = yield self.redis.get(qpkey)
-        defer.returnValue(val)
+        name = self.inverted_policies.get(val, "unknown")
+        defer.returnValue([val, name])
 
     @defer.inlineCallbacks
     def queue_tail(self, queue, keyno=10, delete_obj=False): 

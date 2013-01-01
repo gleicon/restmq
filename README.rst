@@ -5,7 +5,8 @@ RESTMQ
 Redis based message queue.
 --------------------------
 
-:Info: See `my blog <http://zenmachine.wordpress.com>`_ for more information.
+:Info: See `RestMQ website <http://restmq.com>`_
+:Info: See `my blog <http://blog.7co.cc`_ for more information.
 :Author: Gleicon Moraes <gleicon@gmail.com>
 :Author: `Alexandre Fiori <http://github.com/fiorix/>`_
 
@@ -18,13 +19,15 @@ resources. It stands on the shoulder of giants, built over Python, Twisted, `Cyc
 
 Redis is more than just a key/value db, and its data types provided support for this project.
 
-Queues are created on the fly, when a message is sent to them. They are simple to use as a curl request can be.
+Queues are created on the fly, when a message is sent to them. They are simple to use as a curl request can be. HTTP Comet, websockets and server sent events may be used for data streaming.
+
+This release is a cleanup of the original code, that can also be found on github.
 
 Install
 =======
 
 $ python setup.py install
-run with sh restmq_server 
+run with bash start_scripts/restmq_server or taylor your own script. Note that currently restmq is presented as a twisted plugin. 
 
 Queue Policy
 ============

@@ -273,12 +273,12 @@ class PolicyQueueHandler(cyclone.web.RequestHandler):
         callback = self.get_argument("callback", None)
 
         try:
-            policy = yield self.settings.oper.queue_policy_get(queue)
+            policy, policy_name = yield self.settings.oper.queue_policy_get(queue)
+            r = {'queue':queue, 'value': policy_name}
+            CustomHandler(self, callback).finish(r)
         except Exception, e:
             log.msg("ERROR: oper.queue_policy_get('%s') failed: %s" % (queue, e))
             raise cyclone.web.HTTPError(503)
-        r = {'queue':queue, 'value': self.inverted_policies.get(policy, "unknown")}
-        CustomHandler(self, callback).finish(r)
 
     @authorize("rest_producer")
     @defer.inlineCallbacks
@@ -332,7 +332,7 @@ class StatusHandler(cyclone.web.RequestHandler):
                 res["queues"][qn]['len'] = yield self.settings.oper.queue_len(q)
                 st = yield self.settings.oper.queue_status(q) 
                 res["queues"][qn]['status'] = st["status"] if st['status'] else ""
-                pl = yield self.settings.oper.queue_policy_get(q)
+                pl, pl_name = yield self.settings.oper.queue_policy_get(q)
                 res["queues"][qn]['policy'] = pl if pl else ""
 
             res['redis'] = repr(self.settings.db)
@@ -365,7 +365,6 @@ class CometDispatcher(object):
         task.LoopingCall(self._auto_dispatch).start(1) # secs between checkings
         task.LoopingCall(self._counters_cleanup).start(30) # presence maintenance
         self.delete_objects = del_obj
-        self._notify_on_new_messages()
 
     def _new_data(self, queue_name):
         self.dispatch(queue_name)
