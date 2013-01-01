@@ -6,8 +6,8 @@ Redis based message queue.
 --------------------------
 
 :Info: See `RestMQ website <http://restmq.com>`_
-:Info: See `my blog <http://blog.7co.cc`_ for more information.
-:Author: Gleicon Moraes <gleicon@gmail.com>
+:Info: See `my blog <http://blog.7co.cc>` for more information.
+:Author: `Gleicon Moraes <http://github.com/gleicon>`
 :Author: `Alexandre Fiori <http://github.com/fiorix/>`_
 
 
