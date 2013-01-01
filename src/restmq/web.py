@@ -362,10 +362,10 @@ class CometDispatcher(object):
         self.presence = defaultdict(lambda: [])
         self.qcounter = defaultdict(lambda: 0)
         self.queue.get().addCallback(self._new_data)
-        #task.LoopingCall(self._auto_dispatch).start(1) # secs between checkings
-        task.LoopingCall(self._notify_on_new_messages).start(1) # backoff t 
+        task.LoopingCall(self._auto_dispatch).start(1) # secs between checkings
         task.LoopingCall(self._counters_cleanup).start(30) # presence maintenance
         self.delete_objects = del_obj
+        self._notify_on_new_messages()
 
     def _new_data(self, queue_name):
         self.dispatch(queue_name)
@@ -375,27 +375,6 @@ class CometDispatcher(object):
         for queue_name, handlers in self.presence.items():
             self.dispatch(queue_name, handlers)
     
-    @defer.inlineCallbacks
-    def _notify_on_new_messages(self):
-        try:
-            ql = [q for q in self.presence.keys() if len(self.presence[q]) > 0]
-            if len(ql) > 0:
-                print "ql: %s" % ql
-                qstat = yield self.oper.multi_queue_by_status(ql)
-                ql = [q for q in ql if q not in qstat]
-
-                def __micro_send(queue, policy, value):
-                    print "presence for %s: %s" % (queue, value)
-                    if value is not None and queue is not None: 
-                        self._dump(self.presence[queue], [value], [policy])
-
-                # deferred
-                self.oper.queue_block_multi_get(ql).addCallback(__micro_send)
-            else:
-                print "skipping - no presence"
-        except Exception, e:
-            print "Exception: ", e
-
     def _counters_cleanup(self):
         keys = self.qcounter.keys()
         for queue_name in keys:
@@ -426,7 +405,9 @@ class CometDispatcher(object):
     def _dump(self, handlers, contents, policy = None):
         if policy is None:
             policy == core.POLICY_BROADCAST
+
         size = len(handlers)
+
         if policy == core.POLICY_BROADCAST:
             self._send(handlers, contents)
 

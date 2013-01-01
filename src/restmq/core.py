@@ -304,7 +304,8 @@ class RedisOperations:
             waits on a list of queues, get back with the first queue that
             received data.
             this makes the redis locallity very important as if there are other
-            instances doing the same the policy wont be respected.
+            instances doing the same the policy wont be respected. OTOH it makes
+            it fast by not polling lists and waiting x seconds
         """
         ql = [QUEUE_NAME % self.normalize(queue) for queue in queue_list]
         res = yield self.redis.brpop(ql) 
