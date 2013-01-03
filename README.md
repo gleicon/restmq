@@ -1,8 +1,8 @@
 # RestMQ Message Broker
 
-    This is the source code of [RestMQ](http://restmq.com), by
-    [Gleicon Moraes](https://github.com/gleicon) and
-    [Alexandre Fiori](https://github.com/fiorix)
+This is the source code of [RestMQ](http://restmq.com), by
+[Gleicon Moraes](https://github.com/gleicon) and
+[Alexandre Fiori](https://github.com/fiorix)
 
 
 ## About
@@ -71,12 +71,12 @@ Live consumers may connect to one of the following endpoints on RestMQ:
 
 ### Simple usage
 
-1. Produce (store something on RestMQ)
+Produce (store something on RestMQ):
 
     $ curl -d 'value=my element' http://localhost:8888/q/queue_name
     queue_name:1
 
-2. Consume
+Consume:
 
     $ curl http://localhost:8888/q/queue_name
     {"count": 0, "key": "queue_name:1", "value": "my element"}
@@ -224,7 +224,7 @@ increments the number of times that the element has been requested - it's the
 *count* element on the sample response above.
 
 The *key* is a unique key that represents this very particular element on the
-server. It's used to identify elements on operations like ``delete``.
+server. It's used to identify elements on operations like delete.
 
 ### Delete
 
