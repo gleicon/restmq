@@ -1,0 +1,25 @@
+# cyclone-tools sample translation.
+# Copyright (C) 2011 Alexandre Fiori
+# This file is distributed under the same license as the cyclone package.
+# Alexandre Fiori <fiorix@gmail.com>, 2011.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: 0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-02-24 15:36-0300\n"
+"PO-Revision-Date: 2011-02-28 15:44+-0300\n"
+"Last-Translator: Alexandre Fiori <fiorix@gmail.com>\n"
+"Language-Team: Alexandre Fiori <fiorix@gmail.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: standard input:5
+msgid "cyclone web server"
+msgstr "servidor web cyclone"
+
+#: standard input:8
+msgid "It works!"
+msgstr "¡Funciona!"

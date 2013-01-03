@@ -1,0 +1,49 @@
+# RestMQ Queue Policy
+
+Consumers can keep a persistent connection to one or more queues on RestMQ,
+and get new elements as they are created.
+
+These consumers must be connected via:
+
+- WebSocket
+- The Comet API
+- SSE (not supported, yet)
+
+Consider the following scenario:
+
+1. N consumers are connected to the "test" queue via the Comet API;
+2. Random producers add elements to the "test" queue, and these elements are
+   instantly distributed to consumers.
+
+This helps on distributing elements of a queue across many consumers in real
+time, and the queue policy determines how.
+
+
+## Supported policies
+
+Each queue on RestMQ has a policy for delivering content to consumers in real
+time. The policy determines how new elements are distributted to these live
+consumers.
+
+Use the following command to see the current policy a queue:
+
+    $ curl http://server/p/queue_name
+
+### Broadcast
+
+This is the default distribution policy of all queues. When new elements are
+added to a queue, they are automatically delivered to ALL live consumers.
+
+Setting the broadcast policy:
+
+    $ curl -d "policy=broadcast" http://server/p/queue_name
+
+### Round-robin
+
+This one is great for distributing the content of a queue across multiple
+consumers, in a round-robin fashion. New content is always delivered to only
+one of the consumers at a time.
+
+Setting the round-robin policy:
+
+    $ curl -d "policy=roundrobin" http://server/p/queue_name

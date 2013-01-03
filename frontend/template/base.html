@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>RestMQ: {% block title %}{% end %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/css/bootstrap-combined.min.css" rel="stylesheet">
+    <link rel="shortcut icon" type="image/ico" href="{{static_url('favicon.ico')}}">
+    <style>
+      body {padding-top: 60px;}
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+    {% block page %}{% end %}
+    </div> <!-- /container -->
+  </body>
+</html>

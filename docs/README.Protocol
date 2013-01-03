@@ -1,36 +1,79 @@
-JSON protocol
-For operations using the JSON protocol, a post mus be issued to http://server/queue .
-There is a simple html form when you issue a GET /queue. 
-This is a simple protocol for queue manipulation, based on my first prototype at http://jsonqueue.appspot.com.
+# RestMQ JSON protocol
+
+JSON operations are available on the /queue endpoint of the server.
+
+Try /queue from a web browser and you'll get a simple form for interacting
+directly with RestMQ via the JSON protocol.
+
+All operations, however, are performed via HTTP POST on /queue.
+
+It is a simple protocol for queue manipulation, based on my first prototype,
+[jQueue](http://jsonqueue.appspot.com).
 
 
-Queue add example:
-{
-	"cmd":"add", 
-	"queue":"test", 
-	"value":"oi"
-}
-- Adds an element to a given queue. If the queue doesn't exists, create it. 
+### Add
 
-Queue get example:
-{
-	"cmd":"get", 
-	"queue":"test"
-}
-- Just get the next element from the queue. It increments a reference counter.
+The following call adds an element to the given queue, which is created
+if it does not exist.
 
-Queue del example:
-{
-	"cmd":"del", 
-	"queue":"test", 
-	"key":"test:31"
-}
-- Deletes an element from the queue. Use the key which comes with get
+    {
+      "cmd":    "add",
+      "queue":  "test",
+      "value":  "oi"
+    }
 
-Queue take example:
-{
-	"cmd":"take", 
-	"queue":"test" 
-}
-- Get and Delete the latest element from the queue.
 
+### Get
+
+This call returns the next element in the queue, or an error.
+
+    {
+      "cmd":    "get",
+      "queue":  "test"
+    }
+
+If the queue does not exist, it responds with:
+
+    {
+      "error":  "Null resultset"
+    }
+
+Otherwise:
+
+    {
+      "queue":  "test",
+      "value":  "oi",
+      "count":  1,
+      "key":    "test:1"
+    }
+
+The ``get`` command does not remove the element from the queue. Instead, it
+increments the number of times that the element has been requested - it's the
+*count* element on the sample response above.
+
+The *key* is a unique key that represents this very particular element on the
+server. It's used to identify elements on operations like ``delete``.
+
+
+### Delete
+
+The following call deletes an element from the queue. It requires the
+element's unique key, which is returned when the element is added to the
+queue, or on the get command.
+
+    {
+      "cmd":    "del",
+      "queue":  "test",
+      "key":    "test:1"
+    }
+
+
+### Take
+
+The ``take`` command get and remove the latest element from a given queue.
+It is the ``get`` command followed by a ``delete``.
+
+    {
+      "cmd":    "take",
+      "queue":  "test"
+    }

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}JSON command form{% end %}
+{% block page %}
+<h1>JSON command form</h1>
+<form method="POST" action="/queue">
+  <label>Query:</label>
+  <textarea class="input-block-level" name="body" rows="8"></textarea>
+  <input type="submit" class="btn btn-primary">
+</form>
+<hr>
+
+<div class="row">
+  <div class="span3">
+    <h2>Add <small>example</small></h2>
+    <pre>
+{
+  "cmd":"add", 
+  "queue":"test", 
+  "value":"oi"
+}
+    </pre>
+  </div>
+
+  <div class="span3">
+    <h2>Get <small>example</small></h2>
+    <pre>
+{
+  "cmd":"get", 
+  "queue":"test"
+}
+    </pre>
+  </div>
+
+  <div class="span3">
+    <h2>Del <small>example</small></h2>
+    <pre>
+{
+  "cmd":"del", 
+  "queue":"test", 
+  "key":"test:31"
+}
+    </pre>
+  </div>
+
+  <div class="span3">
+    <h2>Take <small>example</small></h2>
+    <pre>
+{
+  "cmd":"take", 
+  "queue":"test" 
+}
+    </pre>
+  </div>
+</div>
+{% end %}
