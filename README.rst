@@ -29,6 +29,8 @@ Install
 $ python setup.py install
 run with bash start_scripts/restmq_server or taylor your own script. Note that currently restmq is presented as a twisted plugin. 
 
+Alternatively you can utilize [Vagrant](https://www.vagrantup.com/) and our [Vagrantfile](Vagrantfile) which will handle installation and configuration of redis and RestMQ.
+
 Queue Policy
 ============
 
