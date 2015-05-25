@@ -208,4 +208,4 @@ Thanks to (in no particular order):
 - Salvatore Sanfilippo for redis and for NoSQL patterns discussion.
 - Alexandre Fiori for the redis client enhancement and patches.
 - Roberto Gaiser for the collectd daemon
-- <put your name here if you happen to send a patch>
+- Vitor Pellegrino for dockerizing restmq
