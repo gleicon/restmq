@@ -14,7 +14,7 @@ Redis based message queue.
 About
 =====
 
-RestMQ is a message queue which uses HTTP as transport, JSON to format a minimalist protocol and is organized as REST 
+RestMQ is a message queue which uses HTTP as transport, JSON to format a minimalist protocol and is organized as REST
 resources. It stands on the shoulder of giants, built over Python, Twisted, `Cyclone <http://github.com/fiorix/cyclone>`_ (a Tornado implementation over twisted) and Redis.
 
 Redis is more than just a key/value db, and its data types provided support for this project.
@@ -27,9 +27,18 @@ Install
 =======
 
 $ python setup.py install
-run with bash start_scripts/restmq_server or taylor your own script. Note that currently restmq is presented as a twisted plugin. 
+run with bash start_scripts/restmq_server or taylor your own script. Note that currently restmq is presented as a twisted plugin.
 
 Alternatively you can utilize [Vagrant](https://www.vagrantup.com/) and our [Vagrantfile](Vagrantfile) which will handle installation and configuration of redis and RestMQ.
+
+Another option is to run the project inside a docker container:
+
+```
+docker build -t restmq .
+docker run --rm  -p 6379:6379 -p 8888:8888 restmq
+```
+
+It will run restmq, exposing both 8888 (for its http port) and 6379 (for its redis server) to the host environment.
 
 Queue Policy
 ============
@@ -37,7 +46,7 @@ Queue Policy
 Every queue is created with a default policy, which is `broadcast`. It means that each message
 pushed to a queue will be forwarded to all comet and websocket consumers.
 
-The alternative policy is `roundrobin`, which will distribute these messages in a round robin 
+The alternative policy is `roundrobin`, which will distribute these messages in a round robin
 fashion to all comet and websocket consumers.
 
 The queue policy won't affect regular GET commands to pop a single message from a queue.
@@ -57,7 +66,7 @@ A http client (curl) post to /queue:
 
 Point your browser to http://localhost:8888/c/test
 
-Run $ curl -d "queue=test&value=foobar" http://localhost:8888/ 
+Run $ curl -d "queue=test&value=foobar" http://localhost:8888/
 
 Your browser is acting as a consumer to the queue. Using json encoded data it's easy to fit the data into a js based app.
 
@@ -67,13 +76,13 @@ Aside from the COMET consumer, there are xmlrpc methods, rest routes and the JSO
 COMET consumer
 ==============
 
-There is a COMET based consumer, which will bind even if the queue doesn't already exists. 
+There is a COMET based consumer, which will bind even if the queue doesn't already exists.
 
 The main route is thru /c/<queuename>. It can be tested using curl:
 
 $ curl http://localhost:8888/c/test
 
-In another terminal, run $ curl -d "value=foobar" http://localhost:8888/q/test 
+In another terminal, run $ curl -d "value=foobar" http://localhost:8888/q/test
 
 This is the basic usage pattern for map/reduce (see examples).
 
@@ -83,7 +92,7 @@ See below on how to purge and disconnect all consumers from a queue, using DELET
 WebSocket consumer
 ==================
 
-Now that cyclone has websockets support, check README.websocket to test it. 
+Now that cyclone has websockets support, check README.websocket to test it.
 
 If you are using a browser or library which already supports websockets, you may take advantage of this interface.
 
@@ -142,8 +151,8 @@ For the first release it has:
 
 Dependencies
 ============
-- `cyclone <http://github.com/fiorix/cyclone>`_: 
-  git clone git://github.com/fiorix/cyclone.git 
+- `cyclone <http://github.com/fiorix/cyclone>`_:
+  git clone git://github.com/fiorix/cyclone.git
 
 
 Running
@@ -164,7 +173,7 @@ Editing the script is mandatory for configuring RestMQ for production.
           --redis-pool=  connection pool size [default: 10]
           --port=        port number to listen on [default: 8888]
           --listen=      interface to listen on [default: 127.0.0.1]
-          --version      
+          --version
           --help         Display this help and exit.
 
 
@@ -177,7 +186,7 @@ Tests
     examples/test_xmlrpc.py
     python examples/test_comet.py
     python examples/twitter_trends.py
-    python examples/test_comet_curl.py  
+    python examples/test_comet_curl.py
     python restmq_engine.py -h
 
 
@@ -199,4 +208,4 @@ Thanks to (in no particular order):
 - Salvatore Sanfilippo for redis and for NoSQL patterns discussion.
 - Alexandre Fiori for the redis client enhancement and patches.
 - Roberto Gaiser for the collectd daemon
-- <put your name here if you happen to send a patch> 
+- <put your name here if you happen to send a patch>
